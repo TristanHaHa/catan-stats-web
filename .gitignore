@@ -2,3 +2,5 @@ node_modules/
 dist/
 test-results/
 playwright-report/
+launcher/build/
+Catan Stats.exe

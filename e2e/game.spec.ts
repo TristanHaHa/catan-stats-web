@@ -51,3 +51,24 @@ test('storage failures keep gameplay usable and visibly unsaved', async ({ page 
   await page.goto('./'); await page.getByRole('button', { name: 'Start game →' }).click(); await expect(page.getByRole('status')).toContainText('Changes are not saved');
   await page.getByRole('button', { name: 'Record 7', exact: true }).click(); await expect(page.locator('.roll-display strong')).toHaveText('7'); await expect(page.getByRole('status')).toContainText('Changes are not saved');
 });
+test('generated dice animate once; manual and history entries stay immediate', async ({ page }) => {
+  await page.clock.install();
+  await page.clock.pauseAt(new Date());
+  await page.goto('./'); await page.getByRole('button', { name: /Start game/ }).click();
+  const button = page.getByRole('button', { name: 'Roll dice', exact: true });
+  await button.click(); await expect(button).toBeDisabled(); await expect(page.locator('.dice-pair .die')).toHaveCount(2);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('catan-stats.session.v1')!));
+  expect(saved.rolls).toHaveLength(1); expect(saved.phase).toBe('ready'); expect(saved.completedTurns).toHaveLength(0);
+  expect(saved.rolls[0].total).toBe(saved.rolls[0].dice[0] + saved.rolls[0].dice[1]);
+  await page.clock.fastForward(540); await expect(button).toBeEnabled(); await expect(page.locator('.roll-display strong')).toHaveText(String(saved.rolls[0].total));
+  await page.clock.fastForward(250); expect(await page.evaluate(() => JSON.parse(localStorage.getItem('catan-stats.session.v1')!).rolls.length)).toBe(1);
+  await page.getByRole('button', { name: 'Record 7', exact: true }).click(); await expect(page.locator('.roll-display strong')).toHaveText('7'); await expect(page.locator('.dice-pair')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Previous roll' }).click(); await expect(page.locator('.is-rolling, .is-fresh')).toHaveCount(0);
+  await button.click(); await page.getByRole('button', { name: 'Record 12', exact: true }).click(); await page.clock.fastForward(1000); await expect(page.locator('.roll-display strong')).toHaveText('12');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('catan-stats.session.v1')!).rolls.length)).toBe(4);
+});
+test('reduced motion immediately displays final dice', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' }); await page.goto('./'); await page.getByRole('button', { name: /Start game/ }).click();
+  await page.getByRole('button', { name: 'Roll dice', exact: true }).click(); await expect(page.locator('.is-rolling')).toHaveCount(0);
+  await expect(page.locator('.roll-display strong')).toHaveText(/^(?:[2-9]|1[0-2])$/); await expect(page.getByRole('button', { name: 'Roll dice', exact: true })).toBeEnabled();
+});

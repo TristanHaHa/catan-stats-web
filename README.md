@@ -27,6 +27,8 @@ Browser tests run against the production build at `http://127.0.0.1:4173/catan-s
 
 ## Playing
 
+Generated rolls tumble two dice for about half a second, then reveal their final faces and sum. The result is recorded once at click time; animation cannot add rolls. Manual entries give brief feedback and history navigation stays immediate. Reduced-motion preferences skip the animation.
+
 - Start game snapshots the roster; **Start timer** begins timing separately.
 - Roll two independent dice, enter a whole total from 2 to 12, or use quick-entry buttons. Dice entries never advance a turn or start timing.
 - Pause/resume excludes paused time. **Next turn** completes the current turn and starts the next player immediately, including when advancing from pause.
@@ -45,6 +47,23 @@ Unreadable or unsupported saves are preserved until explicitly discarded. Storag
 ## Static hosting
 
 `npm run build` produces the standalone `dist/` directory, with no server or source checkout needed at runtime. Vite’s base is `/catan-stats-web/`, ready for a GitHub Pages project site of that name. Publish the **contents** of `dist/` to that path. For a root-domain host, change `base` in `vite.config.ts` to `/` and rebuild. Preview and browser tests verify the configured subpath. No remote repository or public deployment is created by this implementation.
+
+## Windows double-click launcher
+
+Double-click **Catan Stats.exe** in the repository folder. It starts a server available only on this computer and opens the default browser at **http://127.0.0.1:4175/catan-stats-web/**. The executable embeds the entire built app; you can copy it elsewhere and run it without Node, npm, or the repository. It uses Windows .NET Framework 4.5 or newer (included in Windows 10/11).
+
+The launcher remains in the notification area. Double-click its tray icon to reopen the app, or right-click and choose **Exit / stop server**. Closing the browser does not stop the server. Launching the executable again opens the same address instead of creating a second server. If another program occupies port 4175, it reports an error rather than choosing a different origin and making saves appear lost.
+
+Launcher saves belong to the fixed `127.0.0.1:4175` origin, separate from development/preview saves at ports 5173/4173. Always use the launcher address for the same session. The executable is locally built and unsigned.
+
+To rebuild after changing the app, on Windows:
+
+```sh
+npm run build:exe
+npm run test:exe
+```
+
+Exit a running launcher before rebuilding/testing it. `build:exe` builds the web app and compiles `launcher/Launcher.cs` using the Windows .NET Framework compiler. Generated binaries and embedded archives are ignored by Git. `test:exe` starts it without opening your default browser, checks its embedded app in Chromium, verifies a second launch, and stops its test server.
 
 ## Structure and scope
 
