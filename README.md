@@ -30,9 +30,9 @@ Browser tests run against the production build at `http://127.0.0.1:4173/catan-s
 Generated rolls tumble two dice for about half a second, then reveal their final faces and sum. The result is recorded once at click time; animation cannot add rolls. Manual entries give brief feedback and history navigation stays immediate. Reduced-motion preferences skip the animation.
 
 - Start game snapshots the roster; **Start timer** begins timing separately.
-- Roll two independent dice, enter a whole total from 2 to 12, or use quick-entry buttons. Dice entries never advance a turn or start timing.
+- Roll two independent dice or use the 2–12 buttons to record physical dice. Dice entries never advance a turn or start timing.
 - Pause/resume excludes paused time. **Next turn** completes the current turn and starts the next player immediately, including when advancing from pause.
-- Browse previous rolls without changing statistics. A new roll always selects the latest history entry.
+- The roll log shows up to eight entries, newest first, with totals, player seats, timestamps, and dice/manual sources. Select any row or use Previous/Next roll to inspect history. A highlighted row and a “Viewing past roll” banner identify your selection; Back to latest returns to the newest entry. Browsing older entries moves the log window through the full saved history without changing statistics. A new roll always selects the latest history entry.
 - Statistics show all eleven totals, counts and percentages, plus each seat’s completed-turn count, total time, and arithmetic mean. Unfinished turns appear only in the live timer.
 - End, Reset, and New game require confirmation. Reset retains the roster; New game makes it editable again.
 
