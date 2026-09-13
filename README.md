@@ -46,7 +46,9 @@ Unreadable or unsupported saves are preserved until explicitly discarded. Storag
 
 ## Static hosting
 
-`npm run build` produces the standalone `dist/` directory, with no server or source checkout needed at runtime. Vite’s base is `/catan-stats-web/`, ready for a GitHub Pages project site of that name. Publish the **contents** of `dist/` to that path. For a root-domain host, change `base` in `vite.config.ts` to `/` and rebuild. Preview and browser tests verify the configured subpath. No remote repository or public deployment is created by this implementation.
+Live app: **https://tristanhaha.github.io/catan-stats-web/**. Pushes to `main` build, validate, and publish the site through `.github/workflows/pages.yml`. You can also run the workflow manually in GitHub Actions. Hosted saves are separate from the local launcher because they use a different origin.
+
+`npm run build` produces the standalone `dist/` directory, with no server or source checkout needed at runtime. Vite’s base is `/catan-stats-web/`, ready for a GitHub Pages project site of that name. Publish the **contents** of `dist/` to that path. For a root-domain host, change `base` in `vite.config.ts` to `/` and rebuild. Preview and browser tests verify the configured subpath.
 
 ## Windows double-click launcher
 
