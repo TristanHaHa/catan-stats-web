@@ -1,5 +1,7 @@
 # Catan Stats Web
 
+**[Open Catan Stats in your browser](https://tristanhaha.github.io/catan-stats-web/)**
+
 A responsive, browser-local companion for dice rolls and turn timing at a physical game table. Start with four players; add as many as your table needs. Names (1–40 characters), colors, and order are editable during setup. Duplicate names stay distinct by seat and stable ID.
 
 ## Run
