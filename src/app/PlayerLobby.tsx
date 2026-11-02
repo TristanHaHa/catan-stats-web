@@ -11,6 +11,9 @@ type Props = {
   ask: (title: string, body: string, action: () => void) => void;
 };
 const normalized = (players: Player[]) => players.map((p) => ({ ...p, name: p.name.trim() }));
+// Firestore can return object keys in a different order after another member writes.
+const rosterKey = (players: Player[]) =>
+  JSON.stringify(players.map((p) => [p.id, p.name, p.color]));
 export function PlayerLobby({ shared, host, onDirtyChange, ask }: Props) {
   const players = shared.room!.game.players;
   const [draft, setDraft] = useState(players);
@@ -30,8 +33,8 @@ export function PlayerLobby({ shared, host, onDirtyChange, ask }: Props) {
           ? { ...p, name: draft.find((d) => d.id === p.id)?.name ?? p.name }
           : p,
       );
-      if (JSON.stringify(next) !== JSON.stringify(draft)) setDraft(next);
-    } else if (JSON.stringify(normalized(draft)) === JSON.stringify(players)) {
+      if (rosterKey(next) !== rosterKey(draft)) setDraft(next);
+    } else if (rosterKey(normalized(draft)) === rosterKey(players)) {
       setDirty(false);
       setSaveFailed(false);
       onDirtyChange(false);

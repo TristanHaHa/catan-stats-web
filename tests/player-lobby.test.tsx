@@ -34,7 +34,10 @@ it('keeps a space while the host types a two-word name across live save acknowle
     expect(command).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'roster',
-        players: [{ ...players[0], name: 'Clara' }, players[1]],
+        players: [
+          { color: players[0].color, id: players[0].id, name: 'Clara' },
+          { color: players[1].color, id: players[1].id, name: players[1].name },
+        ],
       }),
     ),
   );
@@ -42,7 +45,13 @@ it('keeps a space while the host types a two-word name across live save acknowle
     ...shared,
     room: {
       ...shared.room!,
-      game: { ...shared.room!.game, players: [{ ...players[0], name: 'Clara' }, players[1]] },
+      game: {
+        ...shared.room!.game,
+        players: [
+          { color: players[0].color, id: players[0].id, name: 'Clara' },
+          { color: players[1].color, id: players[1].id, name: players[1].name },
+        ],
+      },
     },
   };
   rerender(<PlayerLobby shared={acknowledged} {...props} />);
