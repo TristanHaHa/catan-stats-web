@@ -181,18 +181,30 @@ export function RosterEditor({
   locked,
   allowRemove = true,
   label = 'Start game →',
+  children,
+  collapsible = false,
+  onDirtyChange,
+  saveDisabled,
 }: {
   initial: Player[];
   onSave: (players: Player[]) => void;
   locked?: boolean;
   allowRemove?: boolean;
   label?: string;
+  children?: ReactNode;
+  collapsible?: boolean;
+  saveDisabled?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [players, setPlayers] = useState(initial);
+  function changePlayers(next: Player[]) {
+    setPlayers(next);
+    onDirtyChange?.(JSON.stringify(next) !== JSON.stringify(initial));
+  }
   function move(index: number, step: number) {
     const next = [...players];
     [next[index], next[index + step]] = [next[index + step], next[index]];
-    setPlayers(next);
+    changePlayers(next);
   }
   return (
     <form
@@ -203,82 +215,86 @@ export function RosterEditor({
     >
       <fieldset disabled={locked}>
         <legend className="sr-only">Player roster in turn order</legend>
-        <div className="roster">
-          {players.map((p, i) => (
-            <div className="player-row" key={p.id}>
-              <span className="seat">{String(i + 1).padStart(2, '0')}</span>
-              <Marker color={p.color} />
-              <label className="name-label">
-                Seat {i + 1} name
-                <input
-                  required
-                  maxLength={40}
-                  value={p.name}
-                  onChange={(e) =>
-                    setPlayers(
-                      players.map((v) => (v.id === p.id ? { ...v, name: e.target.value } : v)),
-                    )
-                  }
-                />
-              </label>
-              <label className="color-label">
-                Color
-                <input
-                  aria-label={`Seat ${i + 1} color`}
-                  type="color"
-                  value={p.color}
-                  onChange={(e) =>
-                    setPlayers(
-                      players.map((v) => (v.id === p.id ? { ...v, color: e.target.value } : v)),
-                    )
-                  }
-                />
-              </label>
-              <div className="row-actions">
-                <button
-                  type="button"
-                  aria-label={`Move seat ${i + 1} up`}
-                  disabled={i === 0}
-                  onClick={() => move(i, -1)}
-                >
-                  ↑
-                </button>
-                <button
-                  type="button"
-                  aria-label={`Move seat ${i + 1} down`}
-                  disabled={i === players.length - 1}
-                  onClick={() => move(i, 1)}
-                >
-                  ↓
-                </button>
-                {allowRemove && (
+        {children}
+        <details
+          className={`roster-details${collapsible ? ' collapsible' : ''}`}
+          open={collapsible ? undefined : true}
+        >
+          <summary>{players.length} players · customize seats</summary>
+          <p className="note">Edit names, colors, and turn order. You can add more players.</p>
+          <div className="roster">
+            {players.map((p, i) => (
+              <div className="player-row" key={p.id}>
+                <span className="seat">{String(i + 1).padStart(2, '0')}</span>
+                <Marker color={p.color} />
+                <label className="name-label">
+                  Seat {i + 1} name
+                  <input
+                    required
+                    maxLength={40}
+                    value={p.name}
+                    onChange={(e) =>
+                      changePlayers(
+                        players.map((v) => (v.id === p.id ? { ...v, name: e.target.value } : v)),
+                      )
+                    }
+                  />
+                </label>
+                <label className="color-label">
+                  Color
+                  <input
+                    aria-label={`Seat ${i + 1} color`}
+                    type="color"
+                    value={p.color}
+                    onChange={(e) =>
+                      changePlayers(
+                        players.map((v) => (v.id === p.id ? { ...v, color: e.target.value } : v)),
+                      )
+                    }
+                  />
+                </label>
+                <div className="row-actions">
                   <button
                     type="button"
-                    aria-label={`Remove seat ${i + 1}`}
-                    disabled={players.length <= 2}
-                    onClick={() => setPlayers(players.filter((v) => v.id !== p.id))}
+                    aria-label={`Move seat ${i + 1} up`}
+                    disabled={i === 0}
+                    onClick={() => move(i, -1)}
                   >
-                    ×
+                    ↑
                   </button>
-                )}
+                  <button
+                    type="button"
+                    aria-label={`Move seat ${i + 1} down`}
+                    disabled={i === players.length - 1}
+                    onClick={() => move(i, 1)}
+                  >
+                    ↓
+                  </button>
+                  {allowRemove && (
+                    <button
+                      type="button"
+                      aria-label={`Remove seat ${i + 1}`}
+                      disabled={players.length <= 2}
+                      onClick={() => changePlayers(players.filter((v) => v.id !== p.id))}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-        <button
-          className="text-button add"
-          type="button"
-          onClick={() => setPlayers([...players, newPlayer(players.length)])}
-        >
-          + Add player
-        </button>
+            ))}
+          </div>
+          <button
+            className="text-button add"
+            type="button"
+            onClick={() => changePlayers([...players, newPlayer(players.length)])}
+          >
+            + Add player
+          </button>
+        </details>
         <div className="setup-footer">
-          <span className="muted">
-            {players.length} players · at least two seats
-            <br />
-            Names may repeat. Every seat stays distinct.
-          </span>
-          <button className="primary" disabled={!validRoster(players)}>
+          <span className="muted">{players.length} players · add or edit seats any time</span>
+          <button className="primary" disabled={saveDisabled || !validRoster(players)}>
             {label}
           </button>
         </div>

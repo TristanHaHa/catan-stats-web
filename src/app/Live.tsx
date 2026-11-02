@@ -7,6 +7,7 @@ import type { RoomConnection } from '../multiplayer/useRoom';
 import { Marker } from './Primitives';
 import { RollDisplay } from './RollDisplay';
 import { Distribution } from './Insights';
+import { Icon } from './Icon';
 
 export function Live({
   game,
@@ -43,7 +44,7 @@ export function Live({
       <div className="view-heading live-heading">
         <div>
           <p className="eyebrow">THE TABLE IS YOURS</p>
-          <h1>{role === 'Spectator' ? 'A seat by the sidelines.' : 'Let the evening unfold.'}</h1>
+          <h1>{role === 'Spectator' ? 'Watching the game' : 'Live game'}</h1>
         </div>
         <span className="chapter">
           {game.players.length} players · {game.completedTurns.length} completed turns
@@ -148,7 +149,7 @@ export function Live({
                     record(dice[0] + dice[1], dice);
                   }}
                 >
-                  <span aria-hidden="true">⚄</span> Roll the dice
+                  <Icon name="dice" /> Roll the dice
                 </button>
                 <div className="manual-heading">
                   <span /> or record your table’s dice <span />

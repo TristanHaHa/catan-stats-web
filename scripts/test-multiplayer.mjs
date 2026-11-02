@@ -1,5 +1,7 @@
+/* global navigator, document, innerWidth */
 import assert from 'node:assert/strict';
 import { chromium } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
 import { spawn } from 'node:child_process';
 import process from 'node:process';
 import console from 'node:console';
@@ -38,19 +40,53 @@ try {
     b = await contextB.newPage();
   const base = 'http://127.0.0.1:5174/catan-stats-web/';
   await a.goto(base);
-  await a.getByRole('button', { name: 'Create a shared table', exact: true }).click();
-  await a.getByLabel('Your name at the table').fill(real ? 'Provisioning QA Host' : 'Tristan');
-  await a.getByRole('button', { name: 'Create shared table →' }).click();
+  await a.getByLabel('Your name', { exact: true }).fill(real ? 'Provisioning QA Host' : 'Tristan');
+  await a.getByRole('button', { name: 'Create lobby' }).click();
   await a.locator('.room-code').waitFor();
   const uiCode = await a.locator('.room-code').innerText();
-  await b.goto(`${base}?room=${uiCode}`);
+  assert.deepEqual(
+    (await new AxeBuilder({ page: a }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze())
+      .violations,
+    [],
+    'Host lobby accessibility',
+  );
+  await a.screenshot({ path: 'docs/shared-lobby.png', fullPage: true });
+  await a.setViewportSize({ width: 390, height: 844 });
+  assert.equal(await a.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await a.screenshot({ path: 'docs/shared-lobby-mobile.png', fullPage: true });
+  await a.setViewportSize({ width: 1440, height: 1000 });
+  await contextA.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await a.getByRole('button', { name: 'Copy invite link', exact: true }).click();
+  await a.getByRole('status').filter({ hasText: 'Invite link copied' }).waitFor();
+  const invitation = await a.evaluate(() => navigator.clipboard.readText());
+  assert.equal(invitation, `${base}?room=${uiCode}`);
+  await b.goto(invitation);
   await b.getByLabel('Your display name').fill('Clara');
-  await b.getByRole('button', { name: 'Join the table →' }).click();
+  await b.getByRole('button', { name: 'Join lobby' }).click();
   await b.getByRole('button', { name: 'Request seat', exact: true }).first().waitFor();
+  assert.deepEqual(
+    (await new AxeBuilder({ page: b }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze())
+      .violations,
+    [],
+    'Guest lobby accessibility',
+  );
+  await a.locator('.roster-details.collapsible summary').click();
+  await a.getByLabel('Seat 4 name').fill('Morgan');
+  assert.equal(
+    await a.getByRole('button', { name: 'Start game →', exact: true }).isDisabled(),
+    true,
+  );
   await b.getByRole('button', { name: 'Request seat', exact: true }).first().click();
   await a.getByRole('button', { name: 'Approve seat', exact: true }).click();
-  await a.getByRole('button', { name: 'Open the table · start game →' }).click();
-  await b.getByRole('button', { name: 'Back to play →' }).click();
+  await b.getByText('Your seat', { exact: true }).waitFor();
+  assert.equal(
+    await a.getByLabel('Seat 4 name').inputValue(),
+    'Morgan',
+    'Seat approval preserves unsaved roster edits',
+  );
+  await a.getByRole('button', { name: 'Save roster', exact: true }).click();
+  await a.getByRole('button', { name: 'Start game →' }).click();
+  await b.getByRole('button', { name: 'Go to game →' }).click();
   await b.getByRole('button', { name: 'Record 7', exact: true }).click();
   await a.locator('.roll-display strong').filter({ hasText: '7' }).waitFor();
   await b.getByRole('button', { name: 'Start timer', exact: true }).click();
@@ -64,8 +100,8 @@ try {
   await contextB.setOffline(false);
   await b.reload();
   await b.getByLabel('Your display name').fill('Clara');
-  await b.getByRole('button', { name: 'Join the table →' }).click();
-  await b.getByRole('button', { name: 'Back to play →' }).click();
+  await b.getByRole('button', { name: 'Join lobby' }).click();
+  await b.getByRole('button', { name: 'Go to game →' }).click();
   await b.locator('.active-player').filter({ hasText: 'Player 2' }).waitFor();
   assert.equal(await b.getByRole('button', { name: 'Record 7', exact: true }).isDisabled(), true);
   console.log(

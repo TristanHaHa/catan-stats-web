@@ -1,10 +1,10 @@
 # The Settler’s Ledger · Catan Stats 2.0
 
-A tabletop companion for dice, turn timing, and the story of game night. A new turn-first interface, Parchment and Dark Walnut themes, and optional real-time multiplayer. Original terrain illustration and settlement markers; no official Catan artwork or logo.
+A tabletop companion for dice, turn timing, and the story of game night. A lobby-first interface on phones and desktops, Dark Walnut by default, an optional Parchment theme, and real-time multiplayer. Original terrain illustration and settlement markers; no official Catan artwork or logo.
 
 Open [The Settler’s Ledger on GitHub Pages](https://tristanhaha.github.io/catan-stats-web/). The shared backend is configured and verified on the free Spark project `catan-65500`, without a billing account. Frontend releases are validated and published by the Pages workflow on pushes to `main`.
 
-![The redesigned live table](docs/dashboard.png)
+![The game lobby](docs/home.png)
 
 ## Run and verify
 
@@ -32,7 +32,8 @@ npm run test:multiplayer
 
 ## At the table
 
-- **Home:** start local play, create a shared table, join by code/invitation, or resume your local session. The join form remembers the last room code.
+- **Game lobby:** Host or Join from the same first page on every device. Choose Online with friends or One device. Saved local games resume explicitly; the last shared room and display name are remembered for rejoining. Seat customization expands in place.
+- **Share a lobby:** create an online lobby, then use **Copy invite link** and paste it into your group chat, or use **Share invite** on supported devices. Friends open the link, enter a name, join, and request a seat. Approve them under **Who’s joined**, then choose **Start game**. The room code and selectable invitation URL are also visible. No account is needed.
 - **Lobby / Game room:** four players by default, at least two, with no fixed roster maximum. Edit names (1–40 characters), colors, and order; duplicate names keep distinct IDs. Shared hosts can start with any or all seats unclaimed. Roster additions and reordering during play retain the current turn and all previous records.
 - **Live table:** current player, timer, next turn, generated two-dice rolls, one-tap physical-dice totals 2–12, recent rolls, and a small distribution preview. A roll never starts the timer or advances a turn. Start timing separately; Next turn finishes the active turn and starts the next immediately, including from pause. Unclaimed seats are never skipped.
 - **Insights:** all totals, observed and expected percentages, actual counts, per-seat completed turn count, total time, and arithmetic mean. Unfinished turns never enter timing statistics. Expected probabilities assume two independent fair six-sided dice.
@@ -79,13 +80,13 @@ Exit a running launcher first. The unsigned `Catan Stats.exe` embeds the current
 
 Pure transitions, statistics, and validation live in `src/domain`; guarded local saving in `src/storage`; Firebase adapters and versioned room commands in `src/multiplayer`; Firestore wire encoding/decoding in `src/multiplayer`; presentation in `src/app`. No chart/router/component framework is needed. Firebase is loaded only for shared activity. Fonts are bundled from Fontsource, with their OFL notices in `public/licenses`; the browser makes no Google Fonts request.
 
-The [design assessment and implementation checklist](docs/ledger-plan.md) compares three layout directions and records verification. The [original implementation handoff](docs/implementation-plan.md) is historical; its local-only scope is superseded by this redesign.
+The [lobby UX review](docs/lobby-ux-review.md) records the UI/UX Pro Max audit, flow changes, and verification. The earlier [design assessment](docs/ledger-plan.md) and [original implementation handoff](docs/implementation-plan.md) describe historical versions.
 
-| Home | Dark Walnut |
-| --- | --- |
-| ![Home](docs/home.png) | ![Dark Walnut live table](docs/walnut.png) |
+| Lobby                   | Shared lobby                           |
+| ----------------------- | -------------------------------------- |
+| ![Lobby](docs/home.png) | ![Shared lobby](docs/shared-lobby.png) |
 
-Additional captures: [mobile](docs/mobile.png), [setup](docs/setup.png), [insights](docs/insights.png), [history](docs/history.png), [game room](docs/room.png), [recap](docs/recap.png), and [emulator multiplayer](docs/multiplayer.png).
+Additional captures: [mobile lobby](docs/lobby-mobile.png), [mobile shared lobby](docs/shared-lobby-mobile.png), [mobile game](docs/mobile.png), [setup](docs/setup.png), [insights](docs/insights.png), [history](docs/history.png), [game room](docs/room.png), [recap](docs/recap.png), and [Parchment](docs/parchment.png).
 
 ## Attribution
 

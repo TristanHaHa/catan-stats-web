@@ -48,6 +48,9 @@
 body {
   margin: 0;
 }
+html {
+  scroll-padding-block: 24px 110px;
+}
 button,
 input,
 select {
@@ -153,7 +156,7 @@ p {
   color: var(--muted);
 }
 small {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
 }
 .primary {
   background: var(--accent);
@@ -190,26 +193,18 @@ small {
   color: var(--muted);
 }
 .note {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   line-height: 1.6;
   margin: 14px 0 0;
 }
 .eyebrow {
   display: block;
-  font-size: 0.61rem;
+  font-size: 0.75rem;
   letter-spacing: 0.17em;
   font-weight: 700;
   line-height: 1.5;
   color: var(--muted);
   margin-bottom: 14px;
-}
-.small-rule {
-  display: inline-block;
-  width: 28px;
-  height: 1px;
-  background: var(--clay);
-  vertical-align: middle;
-  margin-right: 10px;
 }
 .actions {
   display: flex;
@@ -289,7 +284,7 @@ small {
 }
 .brand small {
   display: block;
-  font-size: 0.5rem;
+  font-size: 0.75rem;
   letter-spacing: 0.16em;
   margin-top: 4px;
   color: var(--muted);
@@ -304,7 +299,7 @@ small {
   align-items: center;
   gap: 8px;
   background: transparent;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   min-height: 38px;
   border-color: transparent;
 }
@@ -345,7 +340,7 @@ small {
   line-height: 1;
 }
 .nav-meta {
-  font-size: 0.59rem;
+  font-size: 0.75rem;
   letter-spacing: 0.1em;
   display: flex;
   align-items: center;
@@ -386,7 +381,7 @@ main {
   margin-bottom: 0;
 }
 .chapter {
-  font-size: 0.69rem;
+  font-size: 0.75rem;
   color: var(--muted);
   padding-bottom: 5px;
 }
@@ -404,7 +399,7 @@ main {
   margin: 0;
 }
 .section-heading .muted {
-  font-size: 0.67rem;
+  font-size: 0.75rem;
 }
 .warning {
   background: var(--paper-raised);
@@ -441,7 +436,7 @@ main {
   align-items: center;
   gap: 16px;
   color: var(--muted);
-  font-size: 0.58rem;
+  font-size: 0.75rem;
   letter-spacing: 0.07em;
 }
 .app-footer b {
@@ -455,7 +450,7 @@ main {
   gap: 7px;
   align-items: center;
   letter-spacing: 0;
-  font-size: 0.65rem;
+  font-size: 0.75rem;
 }
 .sync-status i,
 .timer-caption i {
@@ -469,82 +464,12 @@ main {
 .sync-status.offline i {
   background: var(--clay);
 }
-.home-hero {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  align-items: center;
-  min-height: 565px;
-  padding: 28px 0 40px;
-}
-.home-copy {
-  padding-left: 15px;
-}
-.home-copy h1 {
-  font-size: clamp(4rem, 5.8vw, 6.1rem);
-  line-height: 0.99;
-  margin: 25px 0 30px;
-}
-.home-copy h1 em {
-  font-style: normal;
-  color: var(--clay);
-}
-.home-copy > p:not(.eyebrow) {
-  max-width: 350px;
-  line-height: 1.8;
-  font-size: 0.9rem;
-}
-.home-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 28px;
-}
-.home-actions button {
-  min-height: 49px;
-  padding: 13px 20px;
-}
-.home-actions .primary span {
-  margin-left: 20px;
-}
-.join-link {
-  margin-top: 12px;
-}
 .landscape {
   width: 100%;
   height: auto;
   overflow: visible;
 }
-.island-art {
-  position: relative;
-}
-.map-caption {
-  display: block;
-  text-align: center;
-  font-size: 0.53rem;
-  letter-spacing: 0.17em;
-  color: var(--muted);
-  margin-top: -5px;
-}
-.home-footnotes {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  border-top: 1px solid var(--line);
-  padding: 30px 15px 0;
-  gap: 40px;
-}
-.home-footnotes b {
-  font-size: 0.76rem;
-  font-weight: 600;
-}
-.home-footnotes p {
-  font-size: 0.75rem;
-  line-height: 1.8;
-  margin: 10px 0 0;
-  max-width: 270px;
-}
-.setup-sheet,
-.join-sheet {
+.setup-sheet {
   max-width: 790px;
   margin: 6px auto 30px;
   background: var(--paper);
@@ -552,12 +477,8 @@ main {
   padding: 35px 45px;
   box-shadow: var(--shadow);
 }
-.setup-sheet h1,
-.join-sheet h1 {
+.setup-sheet h1 {
   font-size: 3.4rem;
-}
-.back {
-  margin-bottom: 25px;
 }
 .roster {
   margin-top: 25px;
@@ -570,7 +491,7 @@ main {
   padding: 15px 0;
 }
 .seat {
-  font-size: 0.64rem;
+  font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
   color: var(--muted);
 }
@@ -594,7 +515,7 @@ main {
   font-size: 0.9rem;
 }
 .color-label {
-  font-size: 0.65rem;
+  font-size: 0.75rem;
 }
 .row-actions {
   display: flex;
@@ -618,24 +539,11 @@ main {
   padding-top: 24px;
 }
 .setup-footer span {
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   line-height: 1.8;
 }
 .add {
   margin: 12px 0 0;
-}
-.host-name {
-  max-width: 280px;
-  margin: 20px 0;
-}
-.join-sheet {
-  max-width: 540px;
-  padding-bottom: 45px;
-}
-.join-sheet form {
-  display: grid;
-  gap: 22px;
-  margin-top: 28px;
 }
 .code-input {
   letter-spacing: 0.09em;
@@ -683,7 +591,7 @@ main {
   margin: 6px 0 0;
 }
 .active-player small {
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   color: var(--muted);
 }
 .timer {
@@ -698,7 +606,7 @@ main {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 0.67rem;
+  font-size: 0.75rem;
   margin: 0 0 22px;
 }
 .timer-caption i {
@@ -729,7 +637,7 @@ main {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  font-size: 0.52rem;
+  font-size: 0.75rem;
   letter-spacing: 0.12em;
 }
 .up-next b {
@@ -737,7 +645,7 @@ main {
   align-items: center;
   gap: 6px;
   color: var(--ink);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   letter-spacing: 0;
   overflow-wrap: anywhere;
   min-width: 0;
@@ -776,14 +684,14 @@ main {
 .roll-result span {
   display: block;
   color: var(--muted);
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   margin-top: 13px;
   max-width: 160px;
   line-height: 1.6;
 }
 .roll-result small {
   display: block;
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   color: var(--muted);
   margin-top: 4px;
   overflow-wrap: anywhere;
@@ -834,7 +742,7 @@ main {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   color: var(--muted);
   margin: 20px 0 13px;
 }
@@ -863,7 +771,7 @@ main {
 }
 .dice-tray > .note {
   text-align: center;
-  font-size: 0.57rem;
+  font-size: 0.75rem;
   margin-top: 13px;
 }
 .player-ledger {
@@ -880,7 +788,7 @@ main {
   color: var(--muted);
 }
 .player-ledger .eyebrow {
-  font-size: 0.55rem;
+  font-size: 0.75rem;
   letter-spacing: 0.12em;
 }
 .player-ledger ol {
@@ -917,7 +825,7 @@ main {
 }
 .player-ledger li small {
   display: block;
-  font-size: 0.58rem;
+  font-size: 0.75rem;
   margin-top: 4px;
   color: var(--muted);
 }
@@ -926,7 +834,7 @@ main {
 }
 .player-ledger > .text-button {
   text-align: left;
-  font-size: 0.66rem;
+  font-size: 0.75rem;
 }
 .role-note {
   background: var(--wash);
@@ -968,7 +876,7 @@ main {
   width: 100%;
 }
 .recent-strip li small {
-  font-size: 0.54rem;
+  font-size: 0.75rem;
   color: var(--muted);
   font-weight: 400;
 }
@@ -997,7 +905,7 @@ main {
   font-size: 1rem;
 }
 .chance-preview .note {
-  font-size: 0.61rem;
+  font-size: 0.75rem;
   margin-top: 10px;
 }
 .distribution {
@@ -1017,7 +925,7 @@ main {
   gap: 10px;
 }
 .distribution-column .count {
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
   color: var(--muted);
 }
@@ -1077,7 +985,7 @@ main {
   background: transparent;
   height: 15px;
   width: auto;
-  font-size: 0.6rem;
+  font-size: 0.75rem;
 }
 .compact .bar-space {
   background: none;
@@ -1121,7 +1029,7 @@ main {
 .ledger-metrics span {
   display: block;
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
 }
 .ledger-metrics strong {
   font-family: Georgia, serif;
@@ -1135,13 +1043,13 @@ main {
   display: block;
   color: var(--muted);
   margin-top: 7px;
-  font-size: 0.6rem;
+  font-size: 0.75rem;
 }
 .chart-key {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 0.64rem;
+  font-size: 0.75rem;
   color: var(--muted);
 }
 .chart-key i {
@@ -1178,7 +1086,7 @@ table {
 caption {
   text-align: left;
   color: var(--muted);
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   padding: 18px 0;
 }
 th,
@@ -1196,7 +1104,7 @@ th:first-child {
 }
 thead {
   color: var(--muted);
-  font-size: 0.65rem;
+  font-size: 0.75rem;
 }
 tbody th {
   font-weight: 500;
@@ -1266,7 +1174,7 @@ th:last-child {
   justify-content: space-between;
   gap: 12px;
   align-items: center;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--muted);
   min-height: 44px;
   border-bottom: 1px solid var(--line);
@@ -1274,7 +1182,7 @@ th:last-child {
 }
 .history-view button {
   padding: 8px 10px;
-  font-size: 0.65rem;
+  font-size: 0.75rem;
 }
 .viewing-past {
   color: var(--clay);
@@ -1284,10 +1192,10 @@ th:last-child {
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
 }
 .history button {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
 }
 .log-heading {
   display: flex;
@@ -1303,7 +1211,7 @@ th:last-child {
 }
 .log-heading > span,
 .log-help {
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   color: var(--muted);
 }
 .log-help {
@@ -1341,7 +1249,7 @@ th:last-child {
 }
 .log-number,
 .log-marker {
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   color: var(--muted);
 }
 .log-total {
@@ -1355,11 +1263,11 @@ th:last-child {
   min-width: 0;
 }
 .log-detail > span {
-  font-size: 0.74rem;
+  font-size: 0.75rem;
   overflow-wrap: anywhere;
 }
 .log-detail small {
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   color: var(--muted);
 }
 .event-timeline {
@@ -1376,7 +1284,7 @@ th:last-child {
   font-size: 0.8rem;
 }
 .event-timeline time {
-  font-size: 0.63rem;
+  font-size: 0.75rem;
   color: var(--muted);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
@@ -1401,7 +1309,7 @@ th:last-child {
   display: block;
 }
 .invitation-strip p {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   margin: 10px 0 0;
 }
 .invite-actions {
@@ -1412,7 +1320,7 @@ th:last-child {
   flex: 1;
 }
 .invite-actions input {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   width: 100%;
 }
 .room-layout {
@@ -1440,7 +1348,7 @@ th:last-child {
   margin-bottom: 25px;
 }
 .room-layout .setup-footer span {
-  font-size: 0.6rem;
+  font-size: 0.75rem;
 }
 .member-list,
 .seat-claims {
@@ -1461,7 +1369,7 @@ th:last-child {
 .member-list small,
 .seat-claims small {
   display: block;
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   color: var(--muted);
   margin-top: 5px;
 }
@@ -1474,10 +1382,10 @@ th:last-child {
 .member-actions select {
   flex: 1;
   min-width: 100px;
-  font-size: 0.73rem;
+  font-size: 0.75rem;
 }
 .member-actions button {
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   padding: 10px;
 }
 .member-list .request-note {
@@ -1497,7 +1405,7 @@ th:last-child {
   font-size: 0.8rem;
 }
 .seat-claims button {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
 }
 .host-controls {
   margin-top: 10px;
@@ -1518,7 +1426,7 @@ th:last-child {
   font-size: 0.82rem;
 }
 .host-tool p {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   margin: 0;
   max-width: 400px;
 }
@@ -1528,11 +1436,11 @@ th:last-child {
   align-items: flex-end;
 }
 .host-tool label {
-  font-size: 0.64rem;
+  font-size: 0.75rem;
 }
 .host-tool button,
 .host-tool select {
-  font-size: 0.73rem;
+  font-size: 0.75rem;
 }
 .session-actions {
   display: flex;
@@ -1662,7 +1570,7 @@ dialog p {
     gap: 22px;
   }
   .nav-meta {
-    font-size: 0.52rem;
+    font-size: 0.75rem;
   }
   .room-layout {
     grid-template-columns: 1fr;
@@ -1681,13 +1589,6 @@ dialog p {
   }
   .room-code {
     font-size: 1.5rem;
-  }
-  .home-actions {
-    flex-direction: column;
-    max-width: 285px;
-  }
-  .home-copy h1 {
-    font-size: 4.5rem;
   }
 }
 @media (max-width: 860px) {
@@ -1743,30 +1644,12 @@ dialog p {
   .nav-meta {
     display: none;
   }
-  .home-copy h1 {
-    font-size: 4rem;
-  }
-  .home-hero {
-    min-height: 520px;
-    gap: 0;
-  }
-  .home-copy {
-    padding: 0;
-  }
-  .home-footnotes {
-    padding-left: 0;
-    padding-right: 0;
-    gap: 25px;
-  }
   .masthead {
     padding-top: 20px;
     padding-bottom: 20px;
   }
   .header-actions {
     gap: 15px;
-  }
-  .return-table {
-    display: none;
   }
   .history-layout {
     gap: 25px;
@@ -1798,7 +1681,7 @@ dialog p {
     font-size: 1.38rem;
   }
   .brand small {
-    font-size: 0.4rem;
+    font-size: 0.75rem;
     letter-spacing: 0.12em;
   }
   .brand-seal {
@@ -1838,7 +1721,7 @@ dialog p {
     display: flex;
     flex-direction: column;
     gap: 5px;
-    font-size: 0.58rem;
+    font-size: 0.75rem;
     padding: 13px 8px 10px;
     border-bottom: 0;
     border-top: 2px solid transparent;
@@ -1860,7 +1743,7 @@ dialog p {
     gap: 12px;
   }
   .app-footer > span:last-child {
-    font-size: 0.46rem;
+    font-size: 0.75rem;
   }
   .view-heading {
     margin: 0 0 25px;
@@ -1873,7 +1756,7 @@ dialog p {
     font-size: 0.8rem;
   }
   .eyebrow {
-    font-size: 0.55rem;
+    font-size: 0.75rem;
     letter-spacing: 0.14em;
   }
   .live-heading {
@@ -1881,78 +1764,20 @@ dialog p {
   }
   .chapter {
     display: block;
-    font-size: 0.63rem;
+    font-size: 0.75rem;
     margin-top: 13px;
   }
-  .home-hero {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    padding: 10px 0 30px;
-    gap: 30px;
-  }
-  .home-copy h1 {
-    font-size: 4.3rem;
-    margin: 22px 0;
-  }
-  .home-copy > p:not(.eyebrow) {
-    font-size: 0.86rem;
-    max-width: 320px;
-  }
-  .home-actions {
-    max-width: none;
-    flex-direction: row;
-    gap: 9px;
-  }
-  .home-actions button {
-    width: 100%;
-  }
-  .home-actions .primary {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .join-link {
-    font-size: 0.73rem;
-  }
-  .island-art {
-    max-width: 390px;
-    align-self: center;
-  }
-  .map-caption {
-    font-size: 0.44rem;
-  }
-  .home-footnotes {
-    grid-template-columns: 1fr;
-    padding-top: 25px;
-    gap: 22px;
-  }
-  .home-footnotes > div {
-    border-bottom: 1px solid var(--line);
-    padding-bottom: 20px;
-  }
-  .home-footnotes > div:last-child {
-    border: 0;
-    padding-bottom: 0;
-  }
-  .home-footnotes p {
-    max-width: none;
-    margin-top: 6px;
-  }
-  .setup-sheet,
-  .join-sheet {
+  .setup-sheet {
     padding: 0;
     border: 0;
     background: transparent;
     box-shadow: none;
     margin: 0;
   }
-  .setup-sheet h1,
-  .join-sheet h1 {
+  .setup-sheet h1 {
     font-size: 2.7rem;
   }
-  .setup-sheet > p,
-  .join-sheet > p {
+  .setup-sheet > p {
     font-size: 0.83rem;
   }
   .player-row {
@@ -1972,7 +1797,7 @@ dialog p {
     min-width: 130px;
   }
   .color-label {
-    font-size: 0.6rem;
+    font-size: 0.75rem;
   }
   .row-actions button {
     min-height: 35px;
@@ -1984,7 +1809,7 @@ dialog p {
     gap: 18px;
   }
   .setup-footer > span {
-    font-size: 0.65rem;
+    font-size: 0.75rem;
   }
   .setup-footer > button {
     min-height: 48px;
@@ -2025,7 +1850,7 @@ dialog p {
   }
   .timer-caption {
     grid-column: 1/-1;
-    font-size: 0.65rem;
+    font-size: 0.75rem;
     margin-bottom: 14px;
   }
   .timer-control {
@@ -2043,16 +1868,16 @@ dialog p {
   .up-next {
     grid-column: 1/-1;
     margin-top: 16px;
-    font-size: 0.5rem;
+    font-size: 0.75rem;
   }
   .up-next b {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
   }
   .dice-tray {
     padding: 22px;
   }
   .dice-tray .section-heading .muted {
-    font-size: 0.6rem;
+    font-size: 0.75rem;
   }
   .roll-display {
     min-height: 165px;
@@ -2063,11 +1888,11 @@ dialog p {
     font-size: 5.8rem;
   }
   .roll-result span {
-    font-size: 0.63rem;
+    font-size: 0.75rem;
     margin-top: 10px;
   }
   .roll-result small {
-    font-size: 0.57rem;
+    font-size: 0.75rem;
   }
   .dice-pair {
     flex-direction: row;
@@ -2085,16 +1910,16 @@ dialog p {
     min-height: 44px;
   }
   .manual-heading {
-    font-size: 0.57rem;
+    font-size: 0.75rem;
   }
   .dice-tray > .note {
-    font-size: 0.55rem;
+    font-size: 0.75rem;
   }
   .player-ledger {
     padding: 18px;
   }
   .player-ledger .section-heading .eyebrow {
-    font-size: 0.52rem;
+    font-size: 0.75rem;
   }
   .player-ledger ol {
     gap: 7px;
@@ -2103,10 +1928,10 @@ dialog p {
     min-width: 143px;
   }
   .player-ledger li b {
-    font-size: 0.73rem;
+    font-size: 0.75rem;
   }
   .player-ledger li small {
-    font-size: 0.55rem;
+    font-size: 0.75rem;
   }
   .live-foot {
     grid-template-columns: 1fr;
@@ -2117,7 +1942,7 @@ dialog p {
     font-size: 1.3rem;
   }
   .live-foot .text-button {
-    font-size: 0.67rem;
+    font-size: 0.75rem;
   }
   .recent-strip ol {
     gap: 10px;
@@ -2135,7 +1960,7 @@ dialog p {
     height: 108px;
   }
   .chance-preview .note {
-    font-size: 0.64rem;
+    font-size: 0.75rem;
   }
   .ledger-metrics {
     padding: 20px 0;
@@ -2145,7 +1970,7 @@ dialog p {
     padding: 0 12px;
   }
   .ledger-metrics span {
-    font-size: 0.56rem;
+    font-size: 0.75rem;
     line-height: 1.5;
   }
   .ledger-metrics strong {
@@ -2153,7 +1978,7 @@ dialog p {
     margin-top: 10px;
   }
   .ledger-metrics small {
-    font-size: 0.52rem;
+    font-size: 0.75rem;
     line-height: 1.5;
   }
   .ledger-section {
@@ -2175,41 +2000,41 @@ dialog p {
   .distribution .number-token {
     width: 24px;
     height: 24px;
-    font-size: 0.66rem;
+    font-size: 0.75rem;
   }
   .distribution .count {
-    font-size: 0.6rem;
+    font-size: 0.75rem;
   }
   .compact .number-token {
     width: auto;
     height: 15px;
-    font-size: 0.6rem;
+    font-size: 0.75rem;
   }
   .chart-key {
-    font-size: 0.59rem;
+    font-size: 0.75rem;
   }
   .note {
-    font-size: 0.66rem;
+    font-size: 0.75rem;
   }
   .time-row {
     grid-template-columns: minmax(100px, 135px) 1fr 48px;
     gap: 12px;
   }
   .time-player {
-    font-size: 0.67rem;
+    font-size: 0.75rem;
     gap: 6px;
   }
   .time-player .settlement {
     width: 17px;
   }
   .time-row > b {
-    font-size: 0.66rem;
+    font-size: 0.75rem;
   }
   table {
-    font-size: 0.67rem;
+    font-size: 0.75rem;
   }
   caption {
-    font-size: 0.6rem;
+    font-size: 0.75rem;
     line-height: 1.7;
   }
   th,
@@ -2224,15 +2049,15 @@ dialog p {
     min-height: 190px;
   }
   .history-view {
-    font-size: 0.65rem;
+    font-size: 0.75rem;
     flex-wrap: wrap;
   }
   .history button {
-    font-size: 0.67rem;
+    font-size: 0.75rem;
   }
   .log-heading > span,
   .log-help {
-    font-size: 0.6rem;
+    font-size: 0.75rem;
   }
   .roll-log {
     max-height: 450px;
@@ -2247,7 +2072,7 @@ dialog p {
   }
   .event-timeline li {
     gap: 20px;
-    font-size: 0.73rem;
+    font-size: 0.75rem;
   }
   .invitation-strip {
     padding: 22px;
@@ -2269,7 +2094,7 @@ dialog p {
     grid-template-columns: 1fr;
   }
   .room-layout .setup-footer span {
-    font-size: 0.64rem;
+    font-size: 0.75rem;
   }
   .host-tool {
     align-items: flex-start;
@@ -2292,7 +2117,7 @@ dialog p {
     font-size: 0.8rem;
   }
   .host-tool p {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
   }
   .session-actions {
     gap: 8px;
@@ -2300,7 +2125,7 @@ dialog p {
   .session-actions button {
     flex: 1;
     padding: 10px 12px;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
   }
   .room-exit {
     flex-direction: column;
@@ -2310,13 +2135,13 @@ dialog p {
   .warning {
     flex-direction: column;
     align-items: flex-start;
-    font-size: 0.73rem;
+    font-size: 0.75rem;
   }
   .recap-actions {
     flex-direction: column;
   }
   .role-note {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
   }
   dialog {
     padding: 25px;
@@ -2328,7 +2153,7 @@ dialog p {
     gap: 8px;
   }
   dialog .actions button {
-    font-size: 0.72rem;
+    font-size: 0.75rem;
   }
 }
 @media (max-width: 620px) {
@@ -2356,7 +2181,7 @@ dialog p {
     font-size: 1.7rem;
   }
   .active-player small {
-    font-size: 0.56rem;
+    font-size: 0.75rem;
   }
   .active-player .settlement {
     width: 29px;
@@ -2371,7 +2196,7 @@ dialog p {
     margin: 13px 0 10px;
   }
   .timer-caption {
-    font-size: 0.59rem;
+    font-size: 0.75rem;
     margin-bottom: 12px;
   }
   .up-next {
@@ -2389,10 +2214,10 @@ dialog p {
   }
   .dice-tray .roll-result span {
     margin-top: 7px;
-    font-size: 0.58rem;
+    font-size: 0.75rem;
   }
   .dice-tray .roll-result small {
-    font-size: 0.53rem;
+    font-size: 0.75rem;
   }
   .manual-heading {
     margin: 14px 0 10px;
@@ -2411,5 +2236,645 @@ dialog p {
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* Lobby-first experience: one content order and one flow at every viewport. */
+.icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+button:has(> .icon) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+button,
+.text-button {
+  font-size: 0.875rem;
+}
+input,
+select,
+.name-label input {
+  font-size: 1rem;
+}
+label,
+small,
+.note,
+.eyebrow,
+.muted,
+.field-hint {
+  font-size: 0.75rem;
+}
+.note {
+  margin-bottom: 14px;
+}
+.eyebrow {
+  letter-spacing: 0.12em;
+}
+p {
+  font-size: 0.9375rem;
+}
+.header-actions {
+  gap: 16px;
+}
+.brand small {
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+}
+.brand-seal .icon {
+  width: 25px;
+  height: 25px;
+}
+.header-lobby {
+  background: transparent;
+}
+.theme-switch {
+  min-width: 44px;
+  min-height: 44px;
+}
+.theme-switch > .icon {
+  display: block;
+}
+.game-nav button {
+  font-size: 0.8125rem;
+}
+.app-footer,
+.app-footer > span:last-child {
+  font-size: 0.75rem;
+  letter-spacing: 0.025em;
+}
+.nav-meta {
+  font-size: 0.75rem;
+}
+.lobby-page {
+  max-width: 1120px;
+  margin: 0 auto 24px;
+}
+.lobby-heading {
+  margin: 0 0 28px;
+}
+.lobby-heading .eyebrow {
+  margin-bottom: 12px;
+  color: var(--accent);
+}
+.lobby-heading h1 {
+  font-size: clamp(2.8rem, 5vw, 4rem);
+  margin-bottom: 12px;
+}
+.lobby-heading > p:last-child {
+  margin-bottom: 0;
+}
+.lobby-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  gap: 48px;
+  align-items: start;
+}
+.lobby-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  min-width: 0;
+  overflow: clip;
+}
+.lobby-tabs {
+  display: flex;
+  padding: 8px;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.lobby-tabs button {
+  flex: 1;
+  min-height: 48px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+}
+.lobby-tabs button[aria-selected='true'] {
+  background: var(--wash);
+  color: var(--accent);
+  border-color: var(--line);
+}
+.lobby-panel {
+  padding: 28px;
+}
+.lobby-panel[hidden] {
+  display: none;
+}
+.lobby-panel h2 {
+  font-size: 1.9rem;
+  margin-bottom: 22px;
+}
+.mode-picker {
+  display: grid;
+  gap: 10px;
+}
+.mode-picker legend {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.mode-picker label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+.mode-picker label.selected {
+  border-color: var(--accent);
+  background: var(--wash);
+}
+.mode-picker input {
+  accent-color: var(--accent);
+  min-height: 20px;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  flex-shrink: 0;
+}
+.mode-picker span {
+  display: grid;
+  gap: 4px;
+}
+.mode-picker small {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+.mode-explanation {
+  margin: 16px 0 22px;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+.lobby-name {
+  margin-bottom: 20px;
+  font-size: 0.8125rem;
+}
+.roster-details > summary {
+  cursor: pointer;
+  min-height: 48px;
+  padding: 12px 0;
+  font-size: 0.875rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+.roster-details:not(.collapsible) > summary {
+  display: none;
+}
+.roster-details.collapsible {
+  border-block: 1px solid var(--line);
+}
+.roster-details.collapsible .roster {
+  margin-top: 0;
+}
+.roster-details .note {
+  margin-top: 8px;
+}
+.lobby-panel .setup-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: stretch;
+  gap: 16px;
+  margin-top: 20px;
+  border-top: 0;
+  padding-top: 0;
+}
+.lobby-panel .setup-footer > button {
+  grid-row: 1;
+  width: 100%;
+  min-height: 48px;
+}
+.lobby-panel .setup-footer > span {
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+.lobby-panel .setup-footer > span br {
+  display: none;
+}
+.lobby-panel .setup-footer > span {
+  text-align: center;
+}
+.lobby-panel .setup-footer > span br::after {
+  content: ' ';
+}
+.row-actions {
+  gap: 8px;
+}
+.row-actions button,
+.room-layout .row-actions button {
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+}
+.player-row {
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.player-row > .seat {
+  font-size: 0.75rem;
+}
+.color-label {
+  font-size: 0.75rem;
+}
+.lobby-card .player-row > .settlement {
+  display: none;
+}
+.name-label {
+  min-width: 130px;
+}
+.row-actions {
+  margin-left: auto;
+}
+.lobby-guide {
+  padding: 8px 0;
+}
+.lobby-art {
+  max-width: 240px;
+  margin: -10px auto 20px;
+}
+.lobby-art svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.lobby-guide .eyebrow {
+  font-size: 0.75rem;
+  margin-bottom: 10px;
+}
+.lobby-guide h2 {
+  font-size: 1.9rem;
+}
+.lobby-steps {
+  list-style: none;
+  padding: 0;
+  margin: 24px 0;
+  display: grid;
+  gap: 22px;
+}
+.lobby-steps li {
+  display: flex;
+  gap: 14px;
+}
+.lobby-steps li > span {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--accent);
+  font-size: 0.75rem;
+}
+.lobby-steps b {
+  font-size: 0.875rem;
+}
+.lobby-steps p {
+  font-size: 0.8125rem;
+  line-height: 1.65;
+  margin: 5px 0 0;
+}
+.lobby-reassurance {
+  font-size: 0.75rem;
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+}
+.join-form {
+  display: grid;
+  gap: 20px;
+}
+.join-form label {
+  font-size: 0.8125rem;
+}
+.join-form .field-hint {
+  margin: -12px 0 0;
+  line-height: 1.6;
+}
+.join-form button {
+  min-height: 48px;
+  margin-top: 6px;
+}
+.resume-list {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.resume-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  background: var(--wash);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px 22px;
+}
+.resume-card > .icon {
+  color: var(--accent);
+  width: 24px;
+  height: 24px;
+}
+.resume-card > div {
+  flex: 1;
+}
+.resume-card b {
+  font-size: 0.875rem;
+}
+.resume-card p {
+  margin: 4px 0 0;
+  font-size: 0.8125rem;
+}
+.invitation-strip {
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--paper);
+  padding: 28px;
+  margin-bottom: 24px;
+}
+.invitation-copy {
+  flex: 1.2;
+}
+.invitation-copy h2 {
+  font-size: 2rem;
+  margin-bottom: 12px;
+}
+.invitation-strip p {
+  font-size: 0.875rem;
+  line-height: 1.65;
+  max-width: 540px;
+}
+.invitation-strip .eyebrow {
+  color: var(--accent);
+  font-size: 0.75rem;
+}
+.room-code-label {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 22px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.room-code {
+  font-family: 'DM Sans', sans-serif;
+  color: var(--ink);
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  overflow-wrap: anywhere;
+}
+.invite-actions {
+  min-width: 0;
+  gap: 12px;
+}
+.invite-actions button {
+  min-height: 48px;
+}
+.invite-actions input {
+  font-size: 0.875rem;
+  min-width: 0;
+}
+.invitation-strip .invite-feedback {
+  min-height: 3.3em;
+  font-size: 0.8125rem;
+  color: var(--accent);
+  margin: 0;
+}
+.lobby-ready-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  border-radius: 8px;
+  background: var(--wash);
+  padding: 22px 24px;
+  margin-bottom: 32px;
+}
+.lobby-ready-bar b {
+  font-size: 0.9375rem;
+}
+.lobby-ready-bar p {
+  margin: 6px 0 0;
+  font-size: 0.8125rem;
+}
+.lobby-ready-bar button {
+  white-space: nowrap;
+  min-height: 48px;
+}
+.room-layout {
+  gap: 32px;
+}
+.room-layout h2 {
+  font-size: 1.9rem;
+}
+.member-list small,
+.seat-claims small {
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+.member-actions {
+  gap: 8px;
+}
+.member-list li,
+.seat-claims li > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.room-layout .row-actions {
+  gap: 8px;
+}
+.section-heading .eyebrow,
+.chapter,
+.active-player small,
+.timer-caption,
+.dice-tray > .note,
+.manual-heading,
+.up-next,
+.up-next b {
+  font-size: 0.75rem;
+}
+@media (max-width: 900px) {
+  .lobby-layout {
+    gap: 28px;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  }
+  .lobby-panel {
+    padding: 22px;
+  }
+  .mode-picker label {
+    padding: 12px;
+    gap: 10px;
+  }
+  .mode-picker label > .icon {
+    display: none;
+  }
+}
+@media (max-width: 700px) {
+  .lobby-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+  .lobby-guide {
+    border-top: 1px solid var(--line);
+    padding-top: 24px;
+  }
+  .lobby-art {
+    display: none;
+  }
+  .lobby-steps {
+    gap: 18px;
+  }
+  .resume-card {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 18px;
+  }
+  .resume-card > div {
+    flex-basis: calc(100% - 48px);
+  }
+  .resume-card > button {
+    width: 100%;
+  }
+}
+@media (max-width: 620px) {
+  .app-shell {
+    padding-bottom: 0;
+  }
+  .app-shell:has(.game-nav) {
+    padding-bottom: calc(84px + env(safe-area-inset-bottom));
+  }
+  .game-nav {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .game-nav button {
+    font-size: 0.75rem;
+    min-height: 74px;
+  }
+  .masthead {
+    flex-wrap: wrap;
+    padding: 16px 5%;
+  }
+  .brand b {
+    font-size: 1.3rem;
+  }
+  .brand small {
+    display: none;
+  }
+  .header-actions {
+    gap: 8px;
+  }
+  .header-lobby {
+    padding: 8px 10px;
+  }
+  .header-lobby .icon {
+    display: none;
+  }
+  .theme-switch {
+    width: 44px;
+    height: 44px;
+  }
+  .theme-switch > span {
+    display: none;
+  }
+  main {
+    padding-top: 28px;
+  }
+  .lobby-heading {
+    margin-bottom: 24px;
+  }
+  .lobby-heading h1 {
+    font-size: 3rem;
+  }
+  .lobby-heading > p:last-child {
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+  .lobby-panel {
+    padding: 20px;
+  }
+  .lobby-panel h2 {
+    font-size: 1.75rem;
+    margin-bottom: 20px;
+  }
+  .lobby-tabs button {
+    padding: 10px 8px;
+    font-size: 0.8125rem;
+  }
+  .lobby-tabs button .icon {
+    width: 18px;
+  }
+  .eyebrow,
+  .note,
+  .muted,
+  label,
+  small,
+  .chapter {
+    font-size: 0.75rem;
+  }
+  .name-label input,
+  input,
+  select {
+    font-size: 1rem;
+  }
+  .row-actions button,
+  .room-layout .row-actions button {
+    width: 44px;
+    min-height: 44px;
+  }
+  .player-row {
+    gap: 10px;
+  }
+  .setup-footer > span {
+    font-size: 0.75rem;
+  }
+  .invitation-strip {
+    padding: 22px;
+  }
+  .invitation-strip .invite-actions {
+    max-width: none;
+  }
+  .invitation-copy h2 {
+    font-size: 1.9rem;
+  }
+  .invitation-strip p {
+    font-size: 0.875rem;
+  }
+  .room-code {
+    font-size: 1.125rem;
+  }
+  .lobby-ready-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 18px;
+    padding: 20px;
+  }
+  .lobby-ready-bar button {
+    width: 100%;
+  }
+  .view-heading p:not(.eyebrow) {
+    font-size: 0.875rem;
+  }
+  .room-layout {
+    gap: 28px;
+  }
+  .section-heading .eyebrow,
+  .active-player small,
+  .timer-caption,
+  .dice-tray > .note,
+  .manual-heading,
+  .up-next,
+  .up-next b {
+    font-size: 0.75rem;
   }
 }

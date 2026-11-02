@@ -1,15 +1,20 @@
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { App } from '../src/app/App';
+beforeEach(() => {
+  vi.stubGlobal('scrollTo', vi.fn());
+});
 afterEach(() => {
+  vi.unstubAllGlobals();
   cleanup();
   localStorage.clear();
 });
 it('edits and moves stable roster entries and supports eight players', async () => {
   const user = userEvent.setup();
   render(<App />);
-  await user.click(screen.getByRole('button', { name: /Play on this device/ }));
+  await user.click(screen.getByRole('radio', { name: /One device/ }));
+  await user.click(screen.getByText('4 players · customize seats'));
   expect(screen.getAllByRole('textbox')).toHaveLength(4);
   await user.clear(screen.getByLabelText('Seat 1 name'));
   await user.type(screen.getByLabelText('Seat 1 name'), 'Alex');

@@ -1,17 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Game, Player } from '../domain/types';
 import { createGame } from '../domain/reducer';
 import { applyGameCommand, type GameCommand } from '../domain/commands';
 import { KEY, SessionStorage } from '../storage/session';
-import { multiplayerConfigured } from '../multiplayer/config';
 import { canOperate } from '../multiplayer/model';
 import { useRoom } from '../multiplayer/useRoom';
-import { Confirm, Landscape, newPlayer, RosterEditor, uid } from './Primitives';
+import { Confirm, newPlayer, uid } from './Primitives';
 import { Insights } from './Insights';
 import { RollDisplay } from './RollDisplay';
 import { RollHistory } from './RollHistory';
 import { RoomView } from './RoomView';
 import { Live } from './Live';
+import { Lobby } from './Lobby';
+import { Icon, type IconName } from './Icon';
 
 type View = 'home' | 'setup' | 'join' | 'live' | 'insights' | 'history' | 'room';
 function boot() {
@@ -54,15 +55,16 @@ export function App() {
   const [corrupt, setCorrupt] = useState(initial.corrupt);
   const [stale, setStale] = useState(false);
   const [view, setView] = useState<View>(() =>
-    new URLSearchParams(location.search).has('room') ? 'join' : initial.game ? 'live' : 'home',
+    new URLSearchParams(location.search).has('room') ? 'join' : 'home',
   );
-  const [setupMode, setSetupMode] = useState<'local' | 'shared'>('local');
+  const [setupMode, setSetupMode] = useState<'local' | 'shared'>('shared');
+  const previousView = useRef(view);
   const [roomCode, setRoomCode] = useState(
     () => new URLSearchParams(location.search).get('room') ?? saved('ledger.room'),
   );
-  const [displayName, setDisplayName] = useState('');
+  const [displayName, setDisplayName] = useState(() => saved('ledger.name'));
   const [theme, setTheme] = useState(() =>
-    saved('ledger.theme') === 'walnut' ? 'walnut' : 'parchment',
+    saved('ledger.theme') === 'parchment' ? 'parchment' : 'walnut',
   );
   const [now, setNow] = useState(Date.now());
   const [selection, setSelection] = useState((initial.game?.rolls.length ?? 0) - 1);
@@ -99,12 +101,38 @@ export function App() {
         !shared.pending));
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+    document.documentElement.style.removeProperty('background');
+    document.documentElement.style.removeProperty('color-scheme');
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute('content', theme === 'walnut' ? '#25231e' : '#eee9de');
     try {
       localStorage.setItem('ledger.theme', theme);
     } catch {
       /* Theme remains usable. */
     }
   }, [theme]);
+  useEffect(() => {
+    const back = (event: PopStateEvent) => {
+      const next = event.state?.ledgerView;
+      setView(
+        ['home', 'setup', 'join', 'live', 'insights', 'history', 'room'].includes(next)
+          ? next
+          : 'home',
+      );
+      setNotice('');
+      setMotion(null);
+    };
+    window.addEventListener('popstate', back);
+    return () => window.removeEventListener('popstate', back);
+  }, []);
+  useEffect(() => {
+    if (previousView.current === view) return;
+    previousView.current = view;
+    const heading = document.querySelector<HTMLElement>('main h1');
+    heading?.setAttribute('tabindex', '-1');
+    heading?.focus({ preventScroll: true });
+  }, [view]);
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 250);
     return () => window.clearInterval(timer);
@@ -173,21 +201,50 @@ export function App() {
     setConfirmation({ title, body, action });
   }
   function navigate(next: View) {
+    if (next === view) {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      return;
+    }
+    window.history.pushState({ ledgerView: next }, '', `${location.pathname}${location.search}`);
     setView(next);
     setNotice('');
     setMotion(null);
+    window.scrollTo({ top: 0, behavior: 'instant' });
   }
   function chooseLocal() {
-    if (shared.code) shared.leave();
-    window.history.replaceState(null, '', location.pathname);
-    setView(localGame ? 'live' : 'setup');
     setSetupMode('local');
+    navigate('setup');
   }
   function startLocal(players: Player[]) {
-    if (shared.code) shared.leave();
-    commit(createGame(players, uid(), uid()));
-    setRoster(players);
-    setView('live');
+    const start = () => {
+      if (shared.code) shared.leave();
+      window.history.replaceState(null, '', location.pathname);
+      commit(createGame(players, uid(), uid()));
+      setRoster(players);
+      navigate('live');
+    };
+    if (localGame)
+      ask(
+        'Replace saved game',
+        'This clears the saved local game and its statistics. Start a new game with this roster?',
+        start,
+      );
+    else start();
+  }
+  function rememberName() {
+    try {
+      localStorage.setItem('ledger.name', displayName.trim());
+    } catch {
+      /* Name remains usable. */
+    }
+  }
+  function validName() {
+    if (displayName.trim()) return true;
+    setNotice('Enter your display name to join your friends.');
+    document
+      .querySelector<HTMLInputElement>('.lobby-panel:not([hidden]) input[autocomplete="nickname"]')
+      ?.focus();
+    return false;
   }
   const selectedIndex = game ? Math.max(-1, Math.min(selection, game.rolls.length - 1)) : -1;
   const selected = game?.rolls[selectedIndex];
@@ -201,10 +258,10 @@ export function App() {
         <button
           className="brand"
           onClick={() => navigate('home')}
-          aria-label="The Settler’s Ledger home"
+          aria-label="The Settler’s Ledger lobby"
         >
           <span className="brand-seal" aria-hidden="true">
-            ⌂
+            <Icon name="lobby" />
           </span>
           <span>
             <b>The Settler’s Ledger</b>
@@ -212,9 +269,10 @@ export function App() {
           </span>
         </button>
         <div className="header-actions">
-          {game && (
-            <button className="text-button return-table" onClick={() => navigate('live')}>
-              Back to the table ↗
+          {!['home', 'setup', 'join'].includes(view) && (
+            <button className="header-lobby" onClick={() => navigate('home')}>
+              <Icon name="lobby" />
+              Lobby
             </button>
           )}
           <button
@@ -222,37 +280,39 @@ export function App() {
             onClick={() => setTheme(theme === 'parchment' ? 'walnut' : 'parchment')}
             aria-label={`Switch to ${theme === 'parchment' ? 'Dark Walnut' : 'Parchment'} theme`}
           >
-            <span aria-hidden="true">{theme === 'parchment' ? '◐' : '☼'}</span>
+            <Icon name={theme === 'parchment' ? 'moon' : 'sun'} />
             <span>{theme === 'parchment' ? 'Dark Walnut' : 'Parchment'}</span>
           </button>
         </div>
       </header>
-      {game && !['home', 'setup', 'join'].includes(view) && (
-        <nav className="game-nav" aria-label="Game navigation">
-          <div>
-            {(['live', 'insights', 'history', 'room'] as const).map((tab, i) => (
-              <button
-                aria-current={view === tab ? 'page' : undefined}
-                key={tab}
-                onClick={() => navigate(tab)}
-              >
-                <span aria-hidden="true">{['⬡', '▥', '≡', '⌂'][i]}</span>
-                {tab === 'live'
-                  ? 'Live table'
-                  : tab === 'room'
-                    ? host
-                      ? 'Game room'
-                      : 'Room'
-                    : tab[0].toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
-          </div>
-          <span className="nav-meta">
-            {shared.code ? `ROOM ${shared.code}` : 'LOCAL TABLE'}
-            <i /> {role}
-          </span>
-        </nav>
-      )}
+      {game &&
+        (!shared.room || shared.room.started) &&
+        !['home', 'setup', 'join'].includes(view) && (
+          <nav className="game-nav" aria-label="Game navigation">
+            <div>
+              {(['live', 'insights', 'history', 'room'] as const).map((tab, i) => (
+                <button
+                  aria-current={view === tab ? 'page' : undefined}
+                  key={tab}
+                  onClick={() => navigate(tab)}
+                >
+                  <Icon name={(['dice', 'chart', 'history', 'users'] as IconName[])[i]} />
+                  {tab === 'live'
+                    ? 'Live table'
+                    : tab === 'room'
+                      ? host
+                        ? 'Game room'
+                        : 'Room'
+                      : tab[0].toUpperCase() + tab.slice(1)}
+                </button>
+              ))}
+            </div>
+            <span className="nav-meta">
+              {shared.code ? `ROOM ${shared.code}` : 'LOCAL TABLE'}
+              <i /> {role}
+            </span>
+          </nav>
+        )}
       <main id="main">
         {(saveError || shared.error || notice) && (
           <div className="warning" role="alert">
@@ -294,165 +354,55 @@ export function App() {
               Discard saved data
             </button>
           </section>
-        ) : view === 'home' ? (
-          <>
-            <section className="home-hero">
-              <div className="home-copy">
-                <p className="eyebrow">
-                  <span className="small-rule" /> FOR THE LOVE OF GAME NIGHT
-                </p>
-                <h1>
-                  Every roll.
-                  <br />
-                  Every turn.
-                  <br />
-                  <em>A story to tell.</em>
-                </h1>
-                <p>
-                  Your dice, your pace, your people. A thoughtful little companion for the island
-                  you’re building together.
-                </p>
-                <div className="home-actions">
-                  <button className="primary" onClick={chooseLocal}>
-                    {localGame ? 'Resume local game' : 'Play on this device'} <span>→</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSetupMode('shared');
-                      navigate('setup');
-                    }}
-                  >
-                    Create a shared table
-                  </button>
-                </div>
-                <button className="text-button join-link" onClick={() => navigate('join')}>
-                  Have a room code? Join your friends ↗
-                </button>
-                {shared.code && (
-                  <button className="text-button" onClick={() => navigate('live')}>
-                    Resume room {shared.code} →
-                  </button>
-                )}
-              </div>
-              <div className="island-art">
-                <Landscape />
-                <span className="map-caption">AN ISLAND OF POSSIBILITY · A LEDGER OF CHANCE</span>
-              </div>
-            </section>
-            <div className="home-footnotes">
-              <div>
-                <b>01 / Keep the game moving</b>
-                <p>Quick dice entry. Clear turn timing. More time at the table.</p>
-              </div>
-              <div>
-                <b>02 / Share the same story</b>
-                <p>One device or a room full of friends, all following along.</p>
-              </div>
-              <div>
-                <b>03 / Look a little closer</b>
-                <p>See where the dice wandered and how the evening unfolded.</p>
-              </div>
-            </div>
-          </>
-        ) : view === 'setup' ? (
-          <section className="setup-sheet">
-            <button className="text-button back" onClick={() => navigate('home')}>
-              ← Back
-            </button>
-            <p className="eyebrow">BEFORE THE FIRST ROLL</p>
-            <h1>{setupMode === 'local' ? 'Gather around.' : 'Make room for everyone.'}</h1>
-            <p>Set names, colors, and turn order. There’s a seat for everyone at your table.</p>
-            {setupMode === 'shared' && (
-              <>
-                <div className="inset-note">
-                  {multiplayerConfigured
-                    ? 'Players can join now or later. You can play every unclaimed seat as host.'
-                    : 'Shared tables need Firebase setup in this installation. Local games are ready to play. See the Firebase setup guide in the repository.'}
-                </div>
-                <label className="host-name">
-                  Your name at the table
-                  <input
-                    required
-                    maxLength={40}
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="Table keeper"
-                  />
-                </label>
-              </>
-            )}
-            <RosterEditor
-              initial={roster}
-              locked={
-                shared.busy ||
-                (setupMode === 'shared' && (!multiplayerConfigured || !displayName.trim()))
+        ) : ['home', 'setup', 'join'].includes(view) ? (
+          <Lobby
+            initialJoin={view === 'join'}
+            initialLocal={view === 'setup' && setupMode === 'local'}
+            roster={roster}
+            localGame={localGame}
+            connectedCode={shared.code}
+            recentRoom={saved('ledger.room')}
+            busy={shared.busy}
+            roomCode={roomCode}
+            displayName={displayName}
+            setRoomCode={setRoomCode}
+            setDisplayName={setDisplayName}
+            onResume={(local) => {
+              if (local) {
+                if (shared.code) shared.leave();
+                window.history.replaceState(null, '', location.pathname);
+                navigate('live');
+              } else navigate('room');
+            }}
+            onCreate={(players, online) => {
+              if (!online) {
+                startLocal(players);
+                return;
               }
-              onSave={(players) => {
-                if (setupMode === 'local') startLocal(players);
-                else
-                  void shared.create(players, displayName).then((ok) => {
-                    if (ok) navigate('room');
-                  });
-              }}
-              label={
-                setupMode === 'local'
-                  ? 'Start game →'
-                  : shared.busy
-                    ? 'Creating table…'
-                    : 'Create shared table →'
-              }
-            />
-          </section>
-        ) : view === 'join' ? (
-          <section className="join-sheet">
-            <button className="text-button back" onClick={() => navigate('home')}>
-              ← Back
-            </button>
-            <p className="eyebrow">PULL UP A CHAIR</p>
-            <h1>Your table is waiting.</h1>
-            <p>Join as a spectator, then ask the host for your seat. No account to create.</p>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                void shared.connect(roomCode, displayName).then((ok) => {
-                  if (ok) navigate('room');
-                });
-              }}
-            >
-              <label>
-                Room code
-                <input
-                  required
-                  pattern="[A-Fa-f0-9]{12}"
-                  maxLength={12}
-                  autoCapitalize="characters"
-                  className="code-input"
-                  value={roomCode}
-                  onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                  placeholder="12-character code"
-                />
-              </label>
-              <label>
-                Your display name
-                <input
-                  required
-                  maxLength={40}
-                  autoComplete="nickname"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="How should we call you?"
-                />
-              </label>
-              {!multiplayerConfigured && (
-                <p className="inset-note">
-                  Firebase isn’t configured in this installation. You can still start a local game.
-                </p>
-              )}
-              <button className="primary" disabled={!multiplayerConfigured || shared.busy}>
-                {shared.busy ? 'Finding your table…' : 'Join the table →'}
-              </button>
-            </form>
-          </section>
+              if (!validName()) return;
+              void shared.create(players, displayName.trim()).then((ok) => {
+                if (ok) {
+                  rememberName();
+                  window.history.replaceState(null, '', location.pathname);
+                  navigate('room');
+                }
+              });
+            }}
+            onJoin={() => {
+              if (!validName()) return;
+              void shared.connect(roomCode, displayName.trim()).then((ok) => {
+                if (ok) {
+                  rememberName();
+                  window.history.replaceState(
+                    null,
+                    '',
+                    `${location.pathname}?room=${roomCode.trim().toUpperCase()}`,
+                  );
+                  navigate('room');
+                }
+              });
+            }}
+          />
         ) : shared.code && !shared.room ? (
           <section className="setup-sheet" aria-busy="true">
             <h1>Opening the ledger…</h1>
@@ -468,13 +418,12 @@ export function App() {
           </section>
         ) : game ? (
           <>
-            {view === 'room' ? (
+            {view === 'room' || (shared.room && !shared.room.started) ? (
               <RoomView
                 game={game}
                 shared={shared}
                 host={host}
                 onCommand={dispatch}
-                onNotice={setNotice}
                 onPlay={() => navigate('live')}
                 onLeave={() => {
                   shared.leave();
@@ -611,7 +560,7 @@ export function App() {
               ? saveError
               : localGame
                 ? 'Saved in this browser · Local table'
-                : 'Made for good company & a little chance'}
+                : 'Ready for game night'}
         </span>
         <span>
           THE SETTLER’S LEDGER <b>✦</b> {theme === 'walnut' ? 'DARK WALNUT' : 'PARCHMENT'} EDITION

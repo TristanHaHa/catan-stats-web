@@ -4,9 +4,71 @@ const navigation = (page: Page, name: string) =>
   page
     .getByRole('navigation', { name: 'Game navigation' })
     .getByRole('button', { name, exact: true });
+test('lobby is the same first screen at mobile, tablet, and desktop widths', async ({ page }) => {
+  for (const width of [375, 768, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('./');
+    await expect(page.getByRole('heading', { name: 'Game lobby', exact: true })).toBeVisible();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'walnut');
+    await expect(page.getByRole('tab', { name: 'Host a game' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expect(page.getByRole('button', { name: 'Create lobby', exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+  }
+  await page.getByRole('tab', { name: 'Host a game' }).focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('tab', { name: 'Join a game' })).toBeFocused();
+  await expect(page.getByRole('textbox', { name: 'Room code' })).toBeVisible();
+  await page.goto('./?room=ABCDEF123456');
+  await expect(page.getByRole('heading', { name: 'Game lobby', exact: true })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Join a game' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(page.getByLabel('Room code')).toHaveValue('ABCDEF123456');
+  await expect(page.getByRole('button', { name: 'Join lobby', exact: true })).toBeVisible();
+  await page.evaluate(() => {
+    localStorage.setItem('ledger.room', '123456ABCDEF');
+    localStorage.setItem('ledger.name', 'Alex');
+  });
+  await page.goto('./');
+  await page.getByRole('button', { name: 'Rejoin lobby', exact: true }).click();
+  await expect(page.getByLabel('Room code')).toHaveValue('123456ABCDEF');
+  await expect(page.getByRole('textbox', { name: 'Your display name', exact: true })).toHaveValue(
+    'Alex',
+  );
+});
+test('saved games return to the lobby and resume only on request', async ({ page }) => {
+  await setup(page);
+  await page.getByRole('button', { name: 'Record 7', exact: true }).click();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Game lobby', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Resume game', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Resume game', exact: true }).click();
+  await expect(page.locator('.roll-display strong')).toHaveText('7');
+  await navigation(page, 'History').click();
+  await page.goBack();
+  await expect(page.getByRole('heading', { name: 'Live game', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Lobby', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Game lobby', exact: true })).toBeFocused();
+  await page.getByRole('radio', { name: /One device/ }).click();
+  await page.getByRole('button', { name: 'Start game →', exact: true }).click();
+  await expect(page.getByRole('dialog')).toContainText('Replace saved game');
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  expect(
+    await page.evaluate(
+      () => JSON.parse(localStorage.getItem('catan-stats.session.v1')!).rolls[0].total,
+    ),
+  ).toBe(7);
+});
 async function setup(page: Page, seats = 4) {
   await page.goto('./');
-  await page.getByRole('button', { name: /Play on this device/ }).click();
+  await page.getByRole('radio', { name: /One device/ }).click();
+  await page.locator('.roster-details.collapsible summary').click();
   for (let i = 4; i < seats; i++)
     await page.getByRole('button', { name: '+ Add player', exact: true }).click();
   await page.getByLabel('Seat 1 name').fill('Alex');
@@ -29,12 +91,14 @@ for (const seats of [4, 8])
     await page.getByRole('button', { name: 'Pause timer', exact: true }).click();
     const paused = await page.getByLabel('Elapsed turn time').textContent();
     await page.reload();
+    await page.getByRole('button', { name: 'Resume game', exact: true }).click();
     await expect(page.getByLabel('Elapsed turn time')).toHaveText(paused!);
     await page.getByRole('button', { name: 'Resume timer', exact: true }).click();
     for (let i = 0; i < seats; i++) await page.getByRole('button', { name: 'Next turn →' }).click();
     await expect(page.locator('.active-player')).toContainText('Seat 1');
     await expect(page.locator('.active-player')).toContainText('Alex');
     await page.reload();
+    await page.getByRole('button', { name: 'Resume game', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Pause timer', exact: true })).toBeEnabled();
     await expect(page.locator('.live-heading')).toContainText(`${seats} completed turns`);
     expect(
@@ -57,6 +121,7 @@ for (const seats of [4, 8])
     await navigation(page, 'Game room').click();
     await page.getByRole('button', { name: 'New game', exact: true }).click();
     await page.getByRole('button', { name: 'Confirm new game' }).click();
+    await page.locator('.roster-details.collapsible summary').click();
     await expect(page.getByRole('textbox', { name: /Seat .* name/ })).toHaveCount(seats);
   });
 test('corrupt saves are preserved and competing local writers are detected', async ({
@@ -72,14 +137,16 @@ test('corrupt saves are preserved and competing local writers are detected', asy
   expect(await page.evaluate(() => localStorage.getItem('catan-stats.session.v1'))).toBe('{broken');
   await page.getByRole('button', { name: 'Discard saved data', exact: true }).click();
   await page.getByRole('button', { name: 'Confirm discard saved data' }).click();
-  await page.getByRole('button', { name: /Play on this device/ }).click();
+  await page.getByRole('radio', { name: /One device/ }).click();
   await page.getByRole('button', { name: 'Start game →' }).click();
   const other = await context.newPage();
   await other.goto('./');
+  await other.getByRole('button', { name: 'Resume game', exact: true }).click();
   await other.getByRole('button', { name: 'Record 7', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('Another tab');
   await page.getByRole('button', { name: 'Record 12', exact: true }).click();
   await page.getByRole('button', { name: 'Reload saved session' }).click();
+  await page.getByRole('button', { name: 'Resume game', exact: true }).click();
   await expect(page.locator('.roll-display strong')).toHaveText('7');
 });
 test('wall-clock restoration, pause exclusion, correct arithmetic, keyboard confirmation', async ({
@@ -92,10 +159,12 @@ test('wall-clock restoration, pause exclusion, correct arithmetic, keyboard conf
   await page.clock.fastForward(10000);
   await expect(page.getByLabel('Elapsed turn time')).toHaveText('0:10');
   await page.reload();
+  await page.getByRole('button', { name: 'Resume game', exact: true }).click();
   await expect(page.getByLabel('Elapsed turn time')).toHaveText('0:10');
   await page.getByRole('button', { name: 'Pause timer', exact: true }).click();
   await page.clock.fastForward(20000);
   await page.reload();
+  await page.getByRole('button', { name: 'Resume game', exact: true }).click();
   await expect(page.getByLabel('Elapsed turn time')).toHaveText('0:10');
   await page.getByRole('button', { name: 'Resume timer', exact: true }).click();
   await page.clock.fastForward(5000);
@@ -188,9 +257,10 @@ test('midgame additions, correction, undo, and theme persistence', async ({ page
   await navigation(page, 'Live table').click();
   await expect(page.locator('.live-heading')).toContainText('5 players');
   await expect(page.getByRole('button', { name: 'Pause timer', exact: true })).toBeEnabled();
-  await page.getByRole('button', { name: 'Switch to Dark Walnut theme' }).click();
+  await page.getByRole('button', { name: 'Switch to Parchment theme' }).click();
   await page.reload();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'walnut');
+  await page.getByRole('button', { name: 'Resume game', exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'parchment');
   await navigation(page, 'History').click();
   await expect(page.locator('.event-timeline')).toContainText('Host removed latest roll');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
@@ -203,15 +273,15 @@ test('both themes and main views pass automated accessibility checks', async ({ 
     (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze())
       .violations,
   ).toEqual([]);
-  await page.getByRole('button', { name: /Play on this device/ }).click();
+  await page.getByRole('radio', { name: /One device/ }).click();
   expect(
     (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze())
       .violations,
   ).toEqual([]);
   await page.getByRole('button', { name: 'Start game →' }).click();
-  for (const theme of ['parchment', 'walnut']) {
-    if (theme === 'walnut')
-      await page.getByRole('button', { name: 'Switch to Dark Walnut theme' }).click();
+  for (const theme of ['walnut', 'parchment']) {
+    if (theme === 'parchment')
+      await page.getByRole('button', { name: 'Switch to Parchment theme' }).click();
     for (const name of ['Live table', 'Insights', 'History', 'Game room']) {
       await navigation(page, name).click();
       const result = await new AxeBuilder({ page })
