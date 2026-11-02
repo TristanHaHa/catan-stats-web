@@ -19,7 +19,7 @@ try {
     try { response = await fetch(url); break; } catch { await delay(100); }
   }
   assert.equal(response?.status, 200);
-  assert.match(await response.text(), /Catan Stats/);
+  assert.match(await response.text(), /Settler’s Ledger/);
   assert.match(await (await fetch(url + 'LICENSE.txt')).text(), /Copyright \(c\) 2020 Tristan Ha/);
   assert.equal((await fetch(url + 'missing')).status, 404);
   assert.equal((await fetch(url, { method: 'POST' })).status, 405);
@@ -31,6 +31,7 @@ try {
   page.on('pageerror', e => failures.push(e.message));
   page.on('response', r => { if (r.status() >= 400) failures.push(`${r.status()}: ${r.url()}`); });
   await page.goto(url);
+  await page.getByRole('button', { name: /Play on this device/ }).click();
   await page.getByRole('button', { name: /Start game/ }).click();
   await page.getByRole('button', { name: 'Roll dice', exact: true }).click();
   await page.waitForFunction(() => !document.querySelector('.is-rolling'));

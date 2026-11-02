@@ -1,0 +1,8 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    { "collectionGroup": "rooms", "fieldPath": "game.rolls", "indexes": [] },
+    { "collectionGroup": "rooms", "fieldPath": "game.completedTurns", "indexes": [] },
+    { "collectionGroup": "rooms", "fieldPath": "game.activeTurn", "indexes": [] }
+  ]
+}

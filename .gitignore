@@ -4,3 +4,11 @@ test-results/
 playwright-report/
 launcher/build/
 Catan Stats.exe
+.env
+.env.local
+.env.*.local
+.env.*
+!.env.example
+functions/lib/
+*-debug.log
+.firebase/

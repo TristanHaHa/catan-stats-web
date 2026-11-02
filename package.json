@@ -1,7 +1,7 @@
 {
   "name": "catan-stats-web",
-  "version": "1.0.0",
-  "description": "Browser-local dice and turn tracking for game night",
+  "version": "2.0.0",
+  "description": "The Settler’s Ledger: local and shared Catan game-night companion",
   "directories": {
     "doc": "docs"
   },
@@ -11,8 +11,12 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
+    "format": "prettier --write src tests e2e scripts/test-multiplayer.mjs *.json *.ts",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "screenshots": "node scripts/capture-ledger.mjs",
+    "test:multiplayer": "firebase emulators:exec --only auth,firestore --project demo-settlers-ledger \"npm run test:spark:run\"",
+    "test:spark:run": "vitest run tests/spark.integration.test.ts && node scripts/test-multiplayer.mjs",
     "build:exe": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-launcher.ps1",
     "test:exe": "node scripts/test-launcher.mjs"
   },
@@ -21,11 +25,16 @@
   "license": "MIT",
   "type": "module",
   "dependencies": {
+    "@fontsource/dm-sans": "^5.3.0",
+    "@fontsource/libre-caslon-display": "^5.3.0",
+    "firebase": "^13.1.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@eslint/js": "^10.0.1",
+    "@firebase/rules-unit-testing": "^6.0.0",
     "@playwright/test": "^1.63.0",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
@@ -37,13 +46,18 @@
     "eslint": "^10.10.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.6",
+    "firebase-tools": "^15.34.2",
     "jsdom": "^30.0.1",
+    "prettier": "^3.9.10",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.70.0",
     "vite": "^8.3.0",
     "vitest": "^5.0.0"
   },
   "private": true,
+  "overrides": {
+    "@grpc/grpc-js": "^1.14.7"
+  },
   "engines": {
     "node": "24.x"
   }

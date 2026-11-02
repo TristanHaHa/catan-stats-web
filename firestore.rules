@@ -1,0 +1,179 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signed() { return request.auth != null; }
+    function root(code) { return get(/databases/$(database)/documents/rooms/$(code)).data; }
+    function future(code) { return getAfter(/databases/$(database)/documents/rooms/$(code)).data; }
+    function admitted(code) {
+      return signed() && exists(/databases/$(database)/documents/rooms/$(code)/members/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/rooms/$(code)/members/$(request.auth.uid)).data.revoked == false;
+    }
+    function host(code) { return signed() && root(code).hostUid == request.auth.uid; }
+    function key(id) { return id is string && id.matches('^[A-Za-z0-9_-]{1,128}$') && !(id in ['__proto__','constructor','prototype']); }
+    function name(n) { return n is string && n.size() > 0 && n.size() <= 40; }
+    function shape(r) {
+      return r.keys().hasAll(['schemaVersion','hostUid','revision','started','createdAt','updatedAt','seats','nextSeat','lastCommand','game']) &&
+        r.keys().hasOnly(['schemaVersion','hostUid','revision','started','createdAt','updatedAt','seats','nextSeat','lastCommand','game']) &&
+        r.schemaVersion == 3 && r.hostUid is string && r.revision is int && r.started is bool &&
+        r.createdAt is timestamp && r.updatedAt == request.time && r.seats is map && r.nextSeat is map &&
+        r.seats.values().toSet().size() == r.seats.size() && r.seats.keys().hasOnly(r.nextSeat.keys()) &&
+        r.game is map && r.game.keys().hasAll(['schemaVersion','id','players','phase','activeTurn','completedTurns','rolls']) &&
+        r.game.keys().hasOnly(['schemaVersion','id','players','phase','activeTurn','completedTurns','rolls']) &&
+        r.game.schemaVersion == 1 && key(r.game.id) && r.game.players is list && r.game.players.size() >= 2 &&
+        r.game.phase in ['ready','running','paused','finished'] && r.game.completedTurns is map && r.game.rolls is map &&
+        r.lastCommand.keys().hasAll(['id','kind','actorUid','baseRevision','turnId']) &&
+        r.lastCommand.keys().hasOnly(['id','kind','actorUid','baseRevision','turnId']) && key(r.lastCommand.id) &&
+        r.lastCommand.actorUid == request.auth.uid;
+    }
+    function freshTurn(t, player, id, segment) {
+      return t.keys().hasAll(['id','playerId','segments','runningSegment','completedAt']) &&
+        t.keys().hasOnly(['id','playerId','segments','runningSegment','completedAt']) &&
+        t.id == id && t.playerId == player && t.completedAt == null &&
+        (segment == null ? t.segments == {} && t.runningSegment == null :
+          t.runningSegment == segment && t.segments.size() == 1 && t.segments.keys().hasOnly([segment]) && t.segments[segment] == {'startedAt': request.time, 'endedAt': null});
+    }
+    function singleAdded(before, after, id) {
+      return after.diff(before).affectedKeys().hasOnly([id]) && id in after && !(id in before);
+    }
+    function closedTurn(before, after) {
+      let running = before.runningSegment;
+      return after.diff(before).affectedKeys().hasOnly(['segments','runningSegment','completedAt']) &&
+        after.runningSegment == null && after.completedAt == request.time &&
+        (running == null ? after.segments == before.segments :
+          after.segments.diff(before.segments).affectedKeys().hasOnly([running]) &&
+          after.segments[running] == {'startedAt': before.segments[running].startedAt, 'endedAt': request.time});
+    }
+    function rollChange(a,b,id) {
+      let r = b.rolls[id];
+      return b.diff(a).affectedKeys().hasOnly(['rolls']) && singleAdded(a.rolls,b.rolls,id) &&
+        r.keys().hasAll(['id','turnId','playerId','total','dice','source','recordedAt','sequence']) &&
+        r.keys().hasOnly(['id','turnId','playerId','total','dice','source','recordedAt','sequence']) &&
+        r.id == id && r.turnId == a.activeTurn.id && r.playerId == a.activeTurn.playerId &&
+        r.total is int && r.total >= 2 && r.total <= 12 && r.recordedAt == request.time &&
+        (r.source == 'manual' ? r.dice == null : r.source == 'generated' && r.dice is list && r.dice.size() == 2 &&
+          r.dice[0] is int && r.dice[1] is int && r.dice[0] >= 1 && r.dice[0] <= 6 && r.dice[1] >= 1 && r.dice[1] <= 6 && r.dice[0] + r.dice[1] == r.total);
+    }
+    function startChange(a,b,id) {
+      return a.phase in ['ready','paused'] && b.phase == 'running' &&
+        b.diff(a).affectedKeys().hasOnly(['phase','activeTurn']) &&
+        b.activeTurn.diff(a.activeTurn).affectedKeys().hasOnly(['segments','runningSegment']) &&
+        b.activeTurn.runningSegment == id && singleAdded(a.activeTurn.segments,b.activeTurn.segments,id) &&
+        b.activeTurn.segments[id] == {'startedAt':request.time,'endedAt':null};
+    }
+    function pauseChange(a,b) {
+      let running = a.activeTurn.runningSegment;
+      return a.phase == 'running' && b.phase == 'paused' &&
+        b.diff(a).affectedKeys().hasOnly(['phase','activeTurn']) &&
+        b.activeTurn.diff(a.activeTurn).affectedKeys().hasOnly(['segments','runningSegment']) &&
+        b.activeTurn.runningSegment == null &&
+        b.activeTurn.segments.diff(a.activeTurn.segments).affectedKeys().hasOnly([running]) &&
+        b.activeTurn.segments[running] == {'startedAt':a.activeTurn.segments[running].startedAt,'endedAt':request.time};
+    }
+    function nextChange(a,b,id,nextPlayer) {
+      return a.phase in ['running','paused'] && b.phase == 'running' &&
+        b.diff(a).affectedKeys().hasOnly(['phase','activeTurn','completedTurns']) &&
+        singleAdded(a.completedTurns,b.completedTurns,a.activeTurn.id) &&
+        closedTurn(a.activeTurn,b.completedTurns[a.activeTurn.id]) &&
+        freshTurn(b.activeTurn,nextPlayer,id+'-turn',id);
+    }
+    function gameplay(a,b) {
+      let c = b.lastCommand;
+      return a.started && b.started == a.started && b.seats == a.seats && b.nextSeat == a.nextSeat &&
+        a.game.phase != 'finished' && a.seats.get(a.game.activeTurn.playerId, null) == request.auth.uid &&
+        (c.kind == 'roll' && rollChange(a.game,b.game,c.id) && b.game.rolls[c.id].sequence == b.revision ||
+         c.kind == 'start' && startChange(a.game,b.game,c.id) ||
+         c.kind == 'pause' && pauseChange(a.game,b.game) ||
+         c.kind == 'next' && nextChange(a.game,b.game,c.id,a.nextSeat[a.game.activeTurn.playerId]));
+    }
+    function linkedAudit(code,b) {
+      let c = b.lastCommand;
+      let receipt = getAfter(/databases/$(database)/documents/rooms/$(code)/receipts/$(request.auth.uid+'_'+c.id)).data;
+      let event = getAfter(/databases/$(database)/documents/rooms/$(code)/events/$(request.auth.uid+'_'+c.id)).data;
+      return receipt == {'actorUid':request.auth.uid,'commandId':c.id,'revision':b.revision,'at':request.time} &&
+        event.at == request.time && event.actorUid == request.auth.uid && event.kind == c.kind;
+    }
+    function transactionLink(code,id) {
+      let r = future(code);
+      return r.revision == root(code).revision + 1 && r.updatedAt == request.time &&
+        r.lastCommand.actorUid == request.auth.uid && id == request.auth.uid+'_'+r.lastCommand.id;
+    }
+    function validNote(code,e) {
+      return host(code) || e.kind == 'roll' && e.text == 'Dice recorded' ||
+        e.kind == 'start' && e.text == 'Turn timer started / resumed' ||
+        e.kind == 'pause' && e.text == 'Turn timer paused' ||
+        e.kind == 'next' && e.text == 'Turn completed';
+    }
+    match /rooms/{code} {
+      allow get: if admitted(code);
+      allow list, delete: if false;
+      allow create: if signed() && code.matches('^[A-F0-9]{12}$') && shape(request.resource.data) &&
+        request.resource.data.hostUid == request.auth.uid && request.resource.data.revision == 0 &&
+        request.resource.data.started == false && request.resource.data.createdAt == request.time &&
+        request.resource.data.seats == {} && request.resource.data.game.phase == 'ready' &&
+        request.resource.data.game.completedTurns == {} && request.resource.data.game.rolls == {} &&
+        request.resource.data.lastCommand.kind == 'create' &&
+        freshTurn(request.resource.data.game.activeTurn, request.resource.data.game.players[0].id,request.resource.data.game.activeTurn.id,null) &&
+        getAfter(/databases/$(database)/documents/accounts/$(request.auth.uid)).data.latestCode == code &&
+        getAfter(/databases/$(database)/documents/accounts/$(request.auth.uid)).data.lastCreatedAt == request.time &&
+        getAfter(/databases/$(database)/documents/rooms/$(code)/members/$(request.auth.uid)).data.revoked == false;
+      allow update: if admitted(code) && shape(request.resource.data) &&
+        request.resource.data.hostUid == resource.data.hostUid && request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.revision == resource.data.revision + 1 &&
+        request.resource.data.lastCommand.baseRevision == resource.data.revision &&
+        request.resource.data.lastCommand.turnId == (resource.data.game.activeTurn == null ? null : resource.data.game.activeTurn.id) &&
+        linkedAudit(code,request.resource.data) &&
+        (resource.data.hostUid == request.auth.uid && request.resource.data.lastCommand.kind in ['roll','start','pause','next','begin','assign','roster','end','reset','undo-roll','correct-roll','active','member'] || gameplay(resource.data,request.resource.data));
+      match /members/{uid} {
+        allow get: if signed() && (request.auth.uid == uid || admitted(code));
+        allow list: if admitted(code);
+        allow delete: if false;
+        allow create: if signed() && request.auth.uid == uid &&
+          (exists(/databases/$(database)/documents/rooms/$(code)) || future(code).hostUid == uid) &&
+          request.resource.data == {'uid':uid,'name':request.resource.data.name,'joinedAt':request.time,'lastSeen':request.time,'requestedSeat':null,'revoked':false} && name(request.resource.data.name);
+        allow update: if signed() && request.resource.data.keys() == resource.data.keys() &&
+          request.resource.data.uid == resource.data.uid && request.resource.data.joinedAt == resource.data.joinedAt &&
+          (request.auth.uid == uid && resource.data.revoked == false &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','lastSeen','requestedSeat']) && name(request.resource.data.name) &&
+            request.resource.data.lastSeen in [null,request.time] &&
+            (request.resource.data.requestedSeat == resource.data.requestedSeat || request.resource.data.requestedSeat == null || root(code).nextSeat.keys().hasAny([request.resource.data.requestedSeat]) && !(request.resource.data.requestedSeat in root(code).seats)) ||
+           host(code) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revoked','requestedSeat']) &&
+            request.resource.data.revoked is bool && request.resource.data.requestedSeat == null &&
+            (uid != request.auth.uid || request.resource.data.revoked == false));
+      }
+      match /receipts/{id} {
+        allow get: if admitted(code);
+        allow list, update, delete: if false;
+        allow create: if admitted(code) && transactionLink(code,id) &&
+          request.resource.data == {'actorUid':request.auth.uid,'commandId':future(code).lastCommand.id,'revision':future(code).revision,'at':request.time};
+      }
+      match /events/{id} {
+        allow read: if admitted(code);
+        allow update, delete: if false;
+        allow create: if signed() && request.resource.data.keys().hasAll(['at','text','actorUid','kind']) &&
+          request.resource.data.keys().hasOnly(['at','text','actorUid','kind']) && request.resource.data.at == request.time &&
+          request.resource.data.actorUid == request.auth.uid && request.resource.data.text is string && request.resource.data.text.size() <= 500 &&
+          (admitted(code) && transactionLink(code,id) && request.resource.data.kind == future(code).lastCommand.kind && validNote(code,request.resource.data) ||
+           id == request.auth.uid+'_join' && request.resource.data.kind == 'join' &&
+            getAfter(/databases/$(database)/documents/rooms/$(code)/members/$(request.auth.uid)).data.joinedAt == request.time &&
+            request.resource.data.text == getAfter(/databases/$(database)/documents/rooms/$(code)/members/$(request.auth.uid)).data.name+' joined the room');
+      }
+    }
+    match /accounts/{uid} {
+      allow get: if signed() && uid == request.auth.uid;
+      allow list, delete: if false;
+      allow create, update: if signed() && uid == request.auth.uid &&
+        request.resource.data.keys().hasOnly(['latestCode','requestId','lastCreatedAt']) && request.resource.data.lastCreatedAt == request.time &&
+        (!exists(/databases/$(database)/documents/accounts/$(uid)) || request.time >= resource.data.lastCreatedAt + duration.value(10,'s')) &&
+        !exists(/databases/$(database)/documents/rooms/$(request.resource.data.latestCode)) &&
+        future(request.resource.data.latestCode).hostUid == uid && future(request.resource.data.latestCode).createdAt == request.time;
+      match /creations/{id} {
+        allow get: if signed() && request.auth.uid == uid;
+        allow list, update, delete: if false;
+        allow create: if signed() && request.auth.uid == uid && request.resource.data.keys().hasOnly(['code','at']) &&
+          request.resource.data.at == request.time && future(request.resource.data.code).hostUid == uid &&
+          future(request.resource.data.code).createdAt == request.time && future(request.resource.data.code).lastCommand.id == id;
+      }
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}

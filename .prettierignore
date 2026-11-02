@@ -1,0 +1,8 @@
+node_modules
+dist
+functions/lib
+package-lock.json
+functions/package-lock.json
+docs/implementation-plan.md
+test-results
+playwright-report

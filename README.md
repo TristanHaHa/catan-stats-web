@@ -1,19 +1,21 @@
-# Catan Stats Web
+# The Settler’s Ledger · Catan Stats 2.0
 
-**[Open Catan Stats in your browser](https://tristanhaha.github.io/catan-stats-web/)**
+A tabletop companion for dice, turn timing, and the story of game night. A new turn-first interface, Parchment and Dark Walnut themes, and optional real-time multiplayer. Original terrain illustration and settlement markers; no official Catan artwork or logo.
 
-A responsive, browser-local companion for dice rolls and turn timing at a physical game table. Start with four players; add as many as your table needs. Names (1–40 characters), colors, and order are editable during setup. Duplicate names stay distinct by seat and stable ID.
+Open [The Settler’s Ledger on GitHub Pages](https://tristanhaha.github.io/catan-stats-web/). The shared backend is configured and verified on the free Spark project `catan-65500`, without a billing account. Frontend releases are validated and published by the Pages workflow on pushes to `main`.
 
-## Run
+![The redesigned live table](docs/dashboard.png)
 
-Use Node **24.20.0** (also pinned in `.nvmrc`). From this repository:
+## Run and verify
+
+Use Node **24.20.0** (`.nvmrc`). On PowerShell with script execution restrictions use `npm.cmd` / `npx.cmd`.
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Open `http://localhost:5173/catan-stats-web/`. On Windows PowerShell with script execution disabled, use `npm.cmd` and `npx.cmd` in place of `npm` and `npx`.
+Open [localhost:5173/catan-stats-web](http://localhost:5173/catan-stats-web/).
 
 ```sh
 npm run typecheck
@@ -22,67 +24,69 @@ npm test
 npm run build
 npx playwright install chromium
 npm run test:e2e
-npm run preview
+# Java 21+ required; uses only demo Firebase emulators, no credentials:
+npm run test:multiplayer
 ```
 
-Browser tests run against the production build at `http://127.0.0.1:4173/catan-stats-web/`. They cover desktop and phone layouts. CI repeats installation, type checking, lint, unit/component tests, build, and browser tests.
+`npm run screenshots` captures all main local views from a running development server. `LEDGER_CAPTURE_URL` overrides its URL. Screenshot fixtures are created by real UI interactions and remain isolated from your browser's sessions.
 
-## Playing
+## At the table
 
-Generated rolls tumble two dice for about half a second, then reveal their final faces and sum. The result is recorded once at click time; animation cannot add rolls. Manual entries give brief feedback and history navigation stays immediate. Reduced-motion preferences skip the animation.
+- **Home:** start local play, create a shared table, join by code/invitation, or resume your local session. The join form remembers the last room code.
+- **Lobby / Game room:** four players by default, at least two, with no fixed roster maximum. Edit names (1–40 characters), colors, and order; duplicate names keep distinct IDs. Shared hosts can start with any or all seats unclaimed. Roster additions and reordering during play retain the current turn and all previous records.
+- **Live table:** current player, timer, next turn, generated two-dice rolls, one-tap physical-dice totals 2–12, recent rolls, and a small distribution preview. A roll never starts the timer or advances a turn. Start timing separately; Next turn finishes the active turn and starts the next immediately, including from pause. Unclaimed seats are never skipped.
+- **Insights:** all totals, observed and expected percentages, actual counts, per-seat completed turn count, total time, and arithmetic mean. Unfinished turns never enter timing statistics. Expected probabilities assume two independent fair six-sided dice.
+- **History:** inspect every recorded roll through an eight-entry window, with seat, timestamp, and generated/manual source. Inspection never changes game data. Turn changes and host corrections appear as chronological notes.
+- **Host tools:** approved seat assignments/recovery, spectator promotion, membership removal/restoration, player additions, active-player override, roll correction, latest-roll undo, confirmed end/reset/new. Host authority is separate from owning a player seat.
+- **Recap:** recorded distribution and timing comparisons after ending. No victory-point or winner inference.
 
-- Start game snapshots the roster; **Start timer** begins timing separately.
-- Roll two independent dice or use the 2–12 buttons to record physical dice. Dice entries never advance a turn or start timing.
-- Pause/resume excludes paused time. **Next turn** completes the current turn and starts the next player immediately, including when advancing from pause.
-- The roll log shows up to eight entries, newest first, with totals, player seats, timestamps, and dice/manual sources. Select any row or use Previous/Next roll to inspect history. A highlighted row and a “Viewing past roll” banner identify your selection; Back to latest returns to the newest entry. Browsing older entries moves the log window through the full saved history without changing statistics. A new roll always selects the latest history entry.
-- Statistics show all eleven totals, counts and percentages, plus each seat’s completed-turn count, total time, and arithmetic mean. Unfinished turns appear only in the live timer.
-- End, Reset, and New game require confirmation. Reset retains the roster; New game makes it editable again.
+In shared play, only the active seat or host can record rolls and operate turn/timer controls. Waiting players and spectators can view the live table, insights, and history. Guests use anonymous authentication. Joining does not grant seat ownership: request a seat and have the host approve it. Disconnections retain the roster, assignments, and statistics. Host reassignment recovers a seat when a player's browser identity changes.
 
-## Saving and timing
+## Persistence and timing
 
-One session is autosaved after each game change in `localStorage`, under `catan-stats.session.v1`. It belongs to this browser and origin: clearing browser data removes it, and a different device, browser, or origin has separate data. Setup drafts are saved only when the game starts.
+Local games retain the original validated v1 save under `catan-stats.session.v1`. No data conversion or overwrite is required. New local history notes are additive. Invalid/unsupported saves are kept until explicitly discarded. Storage failures leave play usable in memory with a warning. Competing tabs stop stale autosaves until reload; truly simultaneous localStorage play remains unsupported.
 
-Running timers include wall-clock time while a tab is hidden or closed. Paused timers remain unchanged. Display refreshes do not drive timing or trigger save writes. Manual system-clock changes can affect elapsed time; negative segments are clamped to zero.
+Running timers include real elapsed time while tabs are hidden, closed, or disconnected. Pause explicitly to exclude time. Shared durations use backend timestamps and local displays use a periodically calibrated clock offset; no per-second Firestore writes occur. Presence is approximate and never controls ownership or timing. Multiplayer locks unsupported offline changes and restores authoritative state on reconnect. Uncertain requests have an idempotent retry control.
 
-Unreadable or unsupported saves are preserved until explicitly discarded. Storage failures leave the app usable in memory with a visible warning. Another tab’s update stops automatic writes in the stale tab until reload. A pre-write comparison also catches changes before a storage event arrives. Truly simultaneous cross-tab play is unsupported; localStorage cannot provide a multi-tab transaction.
+Local and shared games stay separate: a shared session never replaces the browser-local save. Anonymous identity belongs to the browser; clearing storage loses it. Players can recover through host reassignment. **Losing the host identity has no automatic recovery.** Keep the host browser's data until you finish the game.
 
-## Static hosting
+## Firebase and security
 
-Live app: **https://tristanhaha.github.io/catan-stats-web/**. Pushes to `main` build, validate, and publish the site through `.github/workflows/pages.yml`. You can also run the workflow manually in GitHub Actions. Hosted saves are separate from the local launcher because they use a different origin.
+See [Firebase setup, schema, command protocol, and limitations](docs/firebase-setup.md). Shared play uses anonymous Authentication and Firestore transactions/security rules on **Spark**. No Cloud Functions or billing account is required. Rules validate active-seat rolls/timer transitions, restrict administration to the host, require atomic audit/receipt records, and deny room enumeration. A modified client cannot promote itself or rewrite game history. Native server timestamp segments keep turn durations independent of device clocks.
 
-`npm run build` produces the standalone `dist/` directory, with no server or source checkout needed at runtime. Vite’s base is `/catan-stats-web/`, ready for a GitHub Pages project site of that name. Publish the **contents** of `dist/` to that path. For a root-domain host, change `base` in `vite.config.ts` to `/` and rebuild. Preview and browser tests verify the configured subpath.
+The production web app, default free-tier database, Authentication, domains, and Firestore rules are configured in `catan-65500`. A real-project two-browser workflow passed with billing disabled. Optional App Check enforcement is not configured. Emulator tests include forged writes, permissions, retries, concurrent commands, corrections, and recovery.
 
-## Windows double-click launcher
+Spark quotas limit availability rather than authorizing paid overages while billing stays unlinked. Presence and spectators consume reads/writes; close rooms when finished. Very long games are bounded by Firestore's 1 MiB document limit. Receipts/audit notes persist until intentional manual cleanup. There is no automated host-identity recovery. See the setup guide for details.
 
-Double-click **Catan Stats.exe** in the repository folder. It starts a server available only on this computer and opens the default browser at **http://127.0.0.1:4175/catan-stats-web/**. The executable embeds the entire built app; you can copy it elsewhere and run it without Node, npm, or the repository. It uses Windows .NET Framework 4.5 or newer (included in Windows 10/11).
+## GitHub Pages deployment
 
-The launcher remains in the notification area. Double-click its tray icon to reopen the app, or right-click and choose **Exit / stop server**. Closing the browser does not stop the server. Launching the executable again opens the same address instead of creating a second server. If another program occupies port 4175, it reports an error rather than choosing a different origin and making saves appear lost.
+The Vite base remains `/catan-stats-web/`. Invitations use `?room=CODE` on that same static path, so no server routing or rewrite is needed. `npm run build` creates standalone `dist/`, including fonts; publish its **contents** at that project path. For root-domain hosting change `base` in `vite.config.ts` to `/` and rebuild.
 
-Launcher saves belong to the fixed `127.0.0.1:4175` origin, separate from development/preview saves at ports 5173/4173. Always use the launcher address for the same session. The executable is locally built and unsigned.
+`.github/workflows/pages.yml` checks types, lint, unit tests, browser/accessibility tests, and Spark-only emulator integration before publishing the frontend. Public Firebase configuration is tracked in `src/multiplayer/firebase-public.json`; GitHub `VITE_FIREBASE_*` variables can optionally override it. Deploy backend configuration separately with `npx firebase deploy --only auth,firestore --project catan-65500`. No backend deployment step enables billing or deploys Functions.
 
-To rebuild after changing the app, on Windows:
+## Windows launcher
+
+The existing standalone launcher remains supported:
 
 ```sh
 npm run build:exe
 npm run test:exe
 ```
 
-Exit a running launcher before rebuilding/testing it. `build:exe` builds the web app and compiles `launcher/Launcher.cs` using the Windows .NET Framework compiler. Generated binaries and embedded archives are ignored by Git. `test:exe` starts it without opening your default browser, checks its embedded app in Chromium, verifies a second launch, and stops its test server.
+Exit a running launcher first. The unsigned `Catan Stats.exe` embeds the current frontend and self-hosted fonts, opens `http://127.0.0.1:4175/catan-stats-web/`, and runs from the notification area. Double-click again to reopen; use its tray menu to stop. Node/npm are not needed to run the built executable. Windows .NET Framework 4.5+ is required. Local saves belong to this fixed origin, separately from GitHub Pages and development. A build containing Firebase configuration also needs network access for shared play; local play has no backend dependency.
 
-## Structure and scope
+## Implementation and screenshots
 
-`src/domain` holds pure, timestamp-injected transitions, dice generation, and selectors. `src/storage` validates versioned saves and guards writes. `src/app` composes setup, dashboard, accessible native confirmation dialogs, and session lifecycle; `src/styles` supplies responsive CSS. Tests live in `tests/` and `e2e/`.
+Pure transitions, statistics, and validation live in `src/domain`; guarded local saving in `src/storage`; Firebase adapters and versioned room commands in `src/multiplayer`; Firestore wire encoding/decoding in `src/multiplayer`; presentation in `src/app`. No chart/router/component framework is needed. Firebase is loaded only for shared activity. Fonts are bundled from Fontsource, with their OFL notices in `public/licenses`; the browser makes no Google Fonts request.
 
-There are no accounts, cloud synchronization, past-game library, scoring, export, or offline/PWA support. Modern browsers with native dialog support are required. Automated browser verification uses Chromium with desktop and phone viewports, not physical iOS devices.
+The [design assessment and implementation checklist](docs/ledger-plan.md) compares three layout directions and records verification. The [original implementation handoff](docs/implementation-plan.md) is historical; its local-only scope is superseded by this redesign.
 
-## Screenshots
+| Home | Dark Walnut |
+| --- | --- |
+| ![Home](docs/home.png) | ![Dark Walnut live table](docs/walnut.png) |
 
-![Player setup](docs/setup.png)
-
-![Playable dashboard](docs/dashboard.png)
+Additional captures: [mobile](docs/mobile.png), [setup](docs/setup.png), [insights](docs/insights.png), [history](docs/history.png), [game room](docs/room.png), [recap](docs/recap.png), and [emulator multiplayer](docs/multiplayer.png).
 
 ## Attribution
 
-Based on [TristanHaHa/catan-stats](https://github.com/TristanHaHa/catan-stats), reviewed at commit `47a4c39616834ed11c7921b062907dbdc24c4f78`. The original **Copyright (c) 2020 Tristan Ha** MIT notice is preserved in [LICENSE](LICENSE). This is an independent React/TypeScript implementation of its interaction intent. The full implementation handoff is in [docs/implementation-plan.md](docs/implementation-plan.md).
-
-Toolchain setup references: [Vite](https://vite.dev/guide/), [React](https://react.dev/learn/creating-a-react-app), [Vitest](https://vitest.dev/guide/), [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/), and [Playwright](https://playwright.dev/docs/intro).
+Based on [TristanHaHa/catan-stats](https://github.com/TristanHaHa/catan-stats), originally reviewed at commit `47a4c39616834ed11c7921b062907dbdc24c4f78`. The original **Copyright (c) 2020 Tristan Ha** MIT notice is preserved in [LICENSE](LICENSE). Catan is referenced only to describe compatibility with the physical game; this is an independent companion.

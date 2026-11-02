@@ -23,9 +23,24 @@ jobs:
           cache: npm
       - uses: actions/configure-pages@v5
       - run: npm ci
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npx playwright install --with-deps chromium
+      - run: npm run typecheck
       - run: npm run lint
       - run: npm test
       - run: npm run build
+        env:
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_REGION: ${{ vars.VITE_FIREBASE_REGION }}
+          VITE_FIREBASE_APP_CHECK_KEY: ${{ vars.VITE_FIREBASE_APP_CHECK_KEY }}
+      - run: npm run test:e2e
+      - run: npm run test:multiplayer
       - run: cp LICENSE dist/LICENSE.txt
       - uses: actions/upload-pages-artifact@v4
         with:

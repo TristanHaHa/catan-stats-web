@@ -1,79 +1,634 @@
-import { useEffect, useRef, useState } from 'react';
-import type { Action } from '../domain/reducer';
-import { createGame, elapsed, reducer, validRoster } from '../domain/reducer';
+import { useEffect, useState } from 'react';
 import type { Game, Player } from '../domain/types';
-import { rollDice } from '../domain/dice';
-import { duration, frequencies, playerStats } from '../domain/selectors';
-import { RollHistory } from './RollHistory';
-import { RollDisplay } from './RollDisplay';
+import { createGame } from '../domain/reducer';
+import { applyGameCommand, type GameCommand } from '../domain/commands';
 import { KEY, SessionStorage } from '../storage/session';
+import { multiplayerConfigured } from '../multiplayer/config';
+import { canOperate } from '../multiplayer/model';
+import { useRoom } from '../multiplayer/useRoom';
+import { Confirm, Landscape, newPlayer, RosterEditor, uid } from './Primitives';
+import { Insights } from './Insights';
+import { RollDisplay } from './RollDisplay';
+import { RollHistory } from './RollHistory';
+import { RoomView } from './RoomView';
+import { Live } from './Live';
 
-const uid = () => crypto.randomUUID();
-const palette = ['#bd563d','#327ca0','#d2a13a','#57774d','#9169a6','#bc6485'];
-const player = (i: number): Player => ({ id: uid(), name: `Player ${i + 1}`, color: palette[i % palette.length] });
+type View = 'home' | 'setup' | 'join' | 'live' | 'insights' | 'history' | 'room';
 function boot() {
-  try { const adapter = new SessionStorage(window.localStorage); try { return { adapter, game: adapter.load(), error: '', corrupt: false }; } catch { return { adapter, game: null, error: 'Saved data could not be read. It will be preserved until you explicitly discard it.', corrupt: adapter.blocked }; } }
-  catch { return { adapter: null, game: null, error: 'Storage unavailable. Changes are not saved.', corrupt: false }; }
+  try {
+    const adapter = new SessionStorage(window.localStorage);
+    try {
+      return { adapter, game: adapter.load(), error: '', corrupt: false };
+    } catch {
+      return {
+        adapter,
+        game: null,
+        error:
+          'Saved data could not be read. It will be preserved until you explicitly discard it.',
+        corrupt: adapter.blocked,
+      };
+    }
+  } catch {
+    return {
+      adapter: null,
+      game: null,
+      error: 'Storage unavailable. Changes are not saved.',
+      corrupt: false,
+    };
+  }
 }
-function Confirm({ title, onCancel, onConfirm }: { title: string; onCancel: () => void; onConfirm: () => void }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => { const previous = document.activeElement as HTMLElement; ref.current?.showModal(); return () => { previous?.focus(); }; }, []);
-  const message = title === 'End game' ? 'Finish the active timed turn and keep the final statistics. Dice and turn controls will be locked.' : title === 'Reset game' ? 'Clear all rolls and times, keeping your players in the same order.' : title === 'New game' ? 'Discard this session and return to player setup with your current roster.' : 'Permanently remove the unreadable save from this browser.';
-  return <dialog ref={ref} onCancel={e => { e.preventDefault(); onCancel(); }} aria-labelledby="confirm-title"><h2 id="confirm-title">{title}?</h2><p>{message} This cannot be undone.</p><div className="actions"><button autoFocus onClick={onCancel}>Cancel</button><button className="danger" onClick={onConfirm}>Confirm {title.toLowerCase()}</button></div></dialog>;
+function saved(key: string) {
+  try {
+    return localStorage.getItem(key) ?? '';
+  } catch {
+    return '';
+  }
 }
 export function App() {
   const [initial] = useState(boot);
-  const [game, setGame] = useState<Game | null>(initial.game);
-  const [roster, setRoster] = useState<Player[]>(() => initial.game?.players ?? Array.from({ length: 4 }, (_, i) => player(i)));
+  const [localGame, setLocalGame] = useState<Game | null>(initial.game);
+  const [roster, setRoster] = useState<Player[]>(
+    () => initial.game?.players ?? Array.from({ length: 4 }, (_, i) => newPlayer(i)),
+  );
   const [saveError, setSaveError] = useState(initial.error);
   const [corrupt, setCorrupt] = useState(initial.corrupt);
   const [stale, setStale] = useState(false);
-  const [selection, setSelection] = useState((initial.game?.rolls.length ?? 0) - 1);
+  const [view, setView] = useState<View>(() =>
+    new URLSearchParams(location.search).has('room') ? 'join' : initial.game ? 'live' : 'home',
+  );
+  const [setupMode, setSetupMode] = useState<'local' | 'shared'>('local');
+  const [roomCode, setRoomCode] = useState(
+    () => new URLSearchParams(location.search).get('room') ?? saved('ledger.room'),
+  );
+  const [displayName, setDisplayName] = useState('');
+  const [theme, setTheme] = useState(() =>
+    saved('ledger.theme') === 'walnut' ? 'walnut' : 'parchment',
+  );
   const [now, setNow] = useState(Date.now());
-  const [motion, setMotion] = useState<{ id: string; generated: boolean } | null>(null);
-  useEffect(() => { if (!motion) return; const timer = window.setTimeout(() => setMotion(motion.generated ? { ...motion, generated: false } : null), motion.generated ? 530 : 200); return () => window.clearTimeout(timer); }, [motion]);
-  const [confirmation, setConfirmation] = useState<'Reset game' | 'End game' | 'New game' | 'Discard saved data' | null>(null);
-  useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 250); return () => window.clearInterval(timer); }, []);
-  useEffect(() => { const listener = (e: StorageEvent) => { if ((e.key === KEY || e.key === null) && initial.adapter?.changed(e.newValue)) { setStale(true); setSaveError('Another tab changed this session. Reload to load its state; automatic saves are stopped.'); } }; window.addEventListener('storage', listener); return () => window.removeEventListener('storage', listener); }, [initial]);
+  const [selection, setSelection] = useState((initial.game?.rolls.length ?? 0) - 1);
+  const [notice, setNotice] = useState('');
+  const [motion, setMotion] = useState<{ generated: boolean } | null>(null);
+  const [confirmation, setConfirmation] = useState<{
+    title: string;
+    body: string;
+    action: () => void;
+  } | null>(null);
+  const shared = useRoom();
+  const game = shared.code ? (shared.room?.game ?? null) : localGame;
+  const host = !shared.code || shared.room?.hostUid === shared.uid;
+  const seated = shared.room?.game.players.find((p) => shared.room?.seats[p.id] === shared.uid);
+  const role = !shared.code
+    ? 'Table keeper'
+    : host
+      ? 'Host'
+      : seated
+        ? seated.id === game?.activeTurn?.playerId
+          ? 'Your turn'
+          : 'Waiting player'
+        : 'Spectator';
+  const controls =
+    !!game &&
+    game.phase !== 'finished' &&
+    (!shared.code ||
+      (!!shared.room &&
+        shared.room.started &&
+        canOperate(shared.room, shared.uid) &&
+        shared.online &&
+        shared.synced &&
+        !shared.busy &&
+        !shared.pending));
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try {
+      localStorage.setItem('ledger.theme', theme);
+    } catch {
+      /* Theme remains usable. */
+    }
+  }, [theme]);
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(timer);
+  }, []);
+  useEffect(() => {
+    if (!motion) return;
+    const timer = window.setTimeout(
+      () => setMotion(motion.generated ? { generated: false } : null),
+      motion.generated ? 530 : 200,
+    );
+    return () => window.clearTimeout(timer);
+  }, [motion]);
+  useEffect(() => {
+    setSelection((game?.rolls.length ?? 0) - 1);
+  }, [game?.rolls.length, game?.id]);
+  useEffect(() => {
+    const listener = (e: StorageEvent) => {
+      if ((e.key === KEY || e.key === null) && initial.adapter?.changed(e.newValue)) {
+        setStale(true);
+        setSaveError(
+          'Another tab changed this session. Reload to load its state; automatic saves are stopped.',
+        );
+      }
+    };
+    window.addEventListener('storage', listener);
+    return () => window.removeEventListener('storage', listener);
+  }, [initial]);
   function commit(next: Game | null) {
-    setGame(next); setNow(Date.now());
-    try { if (!initial.adapter) throw new Error('Storage unavailable. Changes are not saved.'); initial.adapter.save(next); setSaveError(''); }
-    catch (e) { setSaveError(`${e instanceof Error ? e.message : 'Storage write failed.'} Changes are not saved.`); if (initial.adapter?.blocked) setStale(true); }
+    setLocalGame(next);
+    setNow(Date.now());
+    try {
+      if (!initial.adapter) throw new Error('Storage unavailable. Changes are not saved.');
+      initial.adapter.save(next);
+      setSaveError('');
+    } catch (e) {
+      setSaveError(
+        `${e instanceof Error ? e.message : 'Storage write failed.'} Changes are not saved.`,
+      );
+      if (initial.adapter?.blocked) setStale(true);
+    }
   }
-  function dispatch(action: Action) { if (!game) return; const next = reducer(game, action); if (next !== game) { commit(next); if (action.type === 'roll') setSelection(next.rolls.length - 1); if (action.type === 'reset') setSelection(-1); } }
+  function dispatch(command: GameCommand) {
+    if (!game) return;
+    if (shared.code) {
+      void shared.command(command);
+      return;
+    }
+    try {
+      commit(applyGameCommand(game, command, Date.now(), uid()));
+      setNotice('');
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : 'Action unavailable.');
+    }
+  }
   function record(total: number, dice: [number, number] | null = null) {
-    if (!game?.activeTurn || game.phase === 'finished') return;
-    const id = uid();
-    dispatch({ type: 'roll', roll: { id, turnId: game.activeTurn.id, playerId: game.activeTurn.playerId, total, dice, source: dice ? 'generated' : 'manual', recordedAt: Date.now() } });
-    setMotion(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? null : { id, generated: dice !== null });
+    if (!controls) return;
+    dispatch({ type: 'roll', total, dice });
+    if (!shared.code)
+      setMotion(
+        window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+          ? null
+          : { generated: dice !== null },
+      );
   }
-  function confirm() {
-    if (confirmation === 'Discard saved data') { try { initial.adapter?.discard(); setCorrupt(false); setStale(false); setSaveError(''); } catch { setSaveError('Could not discard saved data. Storage is unavailable.'); } }
-    else if (confirmation === 'Reset game') dispatch({ type: 'reset', id: uid(), turnId: uid() });
-    else if (confirmation === 'End game') dispatch({ type: 'end', now: Date.now() });
-    else if (confirmation === 'New game') { setRoster(game!.players); commit(null); setSelection(-1); }
-    setConfirmation(null);
+  function ask(title: string, body: string, action: () => void) {
+    setConfirmation({ title, body, action });
   }
-  function move(id: string, step: number) { setRoster(current => { const next = [...current]; const from = next.findIndex(p => p.id === id); const to = from + step; if (to >= 0 && to < next.length) [next[from], next[to]] = [next[to], next[from]]; return next; }); }
-  const active = game?.players.find(p => p.id === game.activeTurn?.playerId);
-  const selected = game?.rolls[Math.max(0, Math.min(selection, game.rolls.length - 1))];
-  const rolling = !!(motion?.generated && motion.id === selected?.id);
-  const selectedSeat = game?.players.findIndex(p => p.id === selected?.playerId) ?? -1;
-  const stats = game ? playerStats(game) : [];
-  const histogram = game ? frequencies(game) : [];
-  const maxCount = Math.max(1, ...histogram.map(f => f.count));
-  const maxMean = Math.max(1, ...stats.map(p => p.meanMs ?? 0));
-  return <><header><a className="brand" href="./"><span aria-hidden="true">⬡</span> CATAN <b>STATS</b></a><span className="tag">A little insight. A better game night.</span></header><main>
-    <div className={saveError ? 'save warning' : 'save'} role="status">{saveError || (game ? 'Saved in this browser · No account needed' : 'Your game stays in this browser')}{stale && <button onClick={() => window.location.reload()}>Reload saved session</button>}</div>
-    {corrupt ? <section className="panel"><h1>Your saved game needs attention</h1><p>The original save has not been overwritten. Discard it to start fresh.</p><button className="danger" onClick={() => setConfirmation('Discard saved data')}>Discard saved data</button></section> : !game ? <section className="setup panel"><p className="eyebrow">BEFORE THE FIRST ROLL</p><h1>Gather your players.</h1><p>Set your names and colors in turn order. There’s room for everyone.</p><form onSubmit={e => { e.preventDefault(); if (validRoster(roster)) { commit(createGame(roster, uid(), uid())); setSelection(-1); } }}>
-      <div className="roster">{roster.map((p, i) => <div className="player-row" key={p.id}><span className="seat">{String(i + 1).padStart(2, '0')}</span><label className="name-label">Seat {i + 1} name<input required maxLength={40} value={p.name} onChange={e => setRoster(roster.map(v => v.id === p.id ? { ...v, name: e.target.value } : v))} /></label><label>Color<input aria-label={`Seat ${i + 1} color`} type="color" value={p.color} onChange={e => setRoster(roster.map(v => v.id === p.id ? { ...v, color: e.target.value } : v))} /></label><div className="row-actions"><button type="button" aria-label={`Move seat ${i + 1} up`} disabled={i === 0} onClick={() => move(p.id, -1)}>↑</button><button type="button" aria-label={`Move seat ${i + 1} down`} disabled={i === roster.length - 1} onClick={() => move(p.id, 1)}>↓</button><button type="button" aria-label={`Remove seat ${i + 1}`} disabled={roster.length <= 2} onClick={() => setRoster(roster.filter(v => v.id !== p.id))}>Remove</button></div></div>)}</div>
-      <button type="button" className="add" onClick={() => setRoster([...roster, player(roster.length)])}>+ Add player</button><div className="setup-footer"><span>{roster.length} players · Names up to 40 characters</span><button className="primary" disabled={!validRoster(roster)}>Start game →</button></div></form></section> : <>
-      <div className="page-heading"><div><p className="eyebrow">THE TABLE AT A GLANCE</p><h1>{game.phase === 'finished' ? 'That’s a wrap.' : 'Let the good rolls begin.'}</h1></div><span className="badge">{game.players.length} players · {game.completedTurns.length} completed turns</span></div>
-      <div className="dashboard"><div className="controls"><section className="panel turn"><div className="section-heading"><h2>Current turn</h2><span className="badge">{game.phase}</span></div><div aria-live="polite" className="active-player"><i style={{ background: active?.color }} />{active ? `Seat ${game.players.indexOf(active) + 1} · ${active.name}` : 'Game finished'}</div><div className="timer" aria-label="Elapsed turn time">{duration(elapsed(game, now))}</div><p className="muted">{game.phase === 'ready' ? 'Ready when you are. Start the timer to begin.' : game.phase === 'finished' ? 'Final statistics are saved below.' : 'This turn · pauses excluded'}</p><div className="actions"><button className="primary" disabled={game.phase === 'finished'} onClick={() => dispatch({ type: game.phase === 'running' ? 'pause' : 'start', now: Date.now() })}>{game.phase === 'running' ? 'Pause timer' : game.phase === 'paused' ? 'Resume timer' : 'Start timer'}</button><button disabled={game.phase === 'ready' || game.phase === 'finished'} onClick={() => dispatch({ type: 'next', now: Date.now(), turnId: uid() })}>Next turn →</button></div></section>
-      <section className="panel"><div className="section-heading"><h2>Dice & history</h2><span className="badge">{game.rolls.length} rolls</span></div><div className={`history-view${selection < game.rolls.length - 1 ? " viewing-past" : ""}`} aria-live="polite"><span>{selected ? selection === game.rolls.length - 1 ? `Latest roll #${selection + 1}` : `Viewing past roll #${selection + 1} of ${game.rolls.length}` : "Ready for your first roll"}</span>{selection < game.rolls.length - 1 && <button onClick={() => { setMotion(null); setSelection(game.rolls.length - 1); }}>Back to latest</button>}</div><RollDisplay key={selected?.id ?? 'empty'} roll={selected} seatLabel={selected ? `Seat ${selectedSeat + 1} · ${game.players[selectedSeat]?.name}` : ''} rolling={rolling} fresh={!!motion && motion.id === selected?.id}/><button className="primary full" disabled={game.phase === 'finished' || rolling} onClick={() => { const dice = rollDice(); record(dice[0] + dice[1], dice); }}>Roll dice</button><p className="muted">Or record the dice on your table</p><div className="quick">{histogram.map(f => <button key={f.total} disabled={game.phase === 'finished'} aria-label={`Record ${f.total}`} onClick={() => record(f.total)}>{f.total}</button>)}</div><RollHistory rolls={game.rolls} players={game.players} selection={selection} onSelect={index => { setMotion(null); setSelection(index); }}/></section></div>
-      <div className="statistics"><section className="panel"><div className="section-heading"><h2>Every roll counts</h2><span className="badge">Roll frequency</span></div><p className="muted">The story of your dice, from 2 to 12.</p><div className="histogram" role="img" aria-label="Roll frequency chart; exact counts and percentages in the table below">{histogram.map(f => <div className="column" key={f.total}><span>{f.count}</span><div className="bar-space"><div className={f.total === 7 ? 'bar seven' : 'bar'} style={{ height: `${f.count / maxCount * 100}%` }}/></div><b>{f.total}</b></div>)}</div><details><summary>View counts & percentages</summary><table><thead><tr><th>Total</th><th>Count</th><th>Percent</th></tr></thead><tbody>{histogram.map(f => <tr key={f.total}><th>{f.total}</th><td>{f.count}</td><td>{f.percent.toFixed(1)}%</td></tr>)}</tbody></table></details></section>
-      <section className="panel"><div className="section-heading"><h2>Time at the table</h2><span className="badge">Average turn</span></div><p className="muted">Completed turns only. Every player has their own pace.</p><div className="time-chart">{stats.map(p => <div key={p.id}><div className="time-label"><span>{p.seat}. {p.name}</span><b>{p.meanMs === null ? '—' : `${(p.meanMs / 1000).toFixed(1)}s`}</b></div><div className="track"><div style={{ background: p.color, width: `${(p.meanMs ?? 0) / maxMean * 100}%` }}/></div></div>)}</div><div className="table-wrap"><table><caption>Completed turn statistics</caption><thead><tr><th>Player</th><th>Turns</th><th>Total</th><th>Mean</th></tr></thead><tbody>{stats.map(p => <tr key={p.id}><th>{p.seat}. {p.name}</th><td>{p.count}</td><td>{duration(p.totalMs)}</td><td>{p.meanMs === null ? '—' : `${(p.meanMs / 1000).toFixed(1)}s`}</td></tr>)}</tbody></table></div></section></div></div>
-      <footer className="session-actions"><span>Session controls</span><button disabled={game.phase === 'finished'} onClick={() => setConfirmation('End game')}>End game</button><button onClick={() => setConfirmation('Reset game')}>Reset game</button><button onClick={() => setConfirmation('New game')}>New game</button></footer></>}
-      <details className="help"><summary>About saving & timing</summary><p>One session is stored locally in this browser and origin. Running time includes time while the tab is hidden or closed. Paused time stays unchanged. Manual system-clock changes can affect timing; backward time changes are clamped to zero. Use one tab to play. Setup edits are saved when you start a game.</p></details>
-    </main>{confirmation && <Confirm title={confirmation} onCancel={() => setConfirmation(null)} onConfirm={confirm}/>}</>;
+  function navigate(next: View) {
+    setView(next);
+    setNotice('');
+    setMotion(null);
+  }
+  function chooseLocal() {
+    if (shared.code) shared.leave();
+    window.history.replaceState(null, '', location.pathname);
+    setView(localGame ? 'live' : 'setup');
+    setSetupMode('local');
+  }
+  function startLocal(players: Player[]) {
+    if (shared.code) shared.leave();
+    commit(createGame(players, uid(), uid()));
+    setRoster(players);
+    setView('live');
+  }
+  const selectedIndex = game ? Math.max(-1, Math.min(selection, game.rolls.length - 1)) : -1;
+  const selected = game?.rolls[selectedIndex];
+  const selectedSeat = game?.players.findIndex((p) => p.id === selected?.playerId) ?? -1;
+  return (
+    <div className="app-shell">
+      <a className="skip-link" href="#main">
+        Skip to content
+      </a>
+      <header className="masthead">
+        <button
+          className="brand"
+          onClick={() => navigate('home')}
+          aria-label="The Settler’s Ledger home"
+        >
+          <span className="brand-seal" aria-hidden="true">
+            ⌂
+          </span>
+          <span>
+            <b>The Settler’s Ledger</b>
+            <small>A COMPANION FOR YOUR CATAN TABLE</small>
+          </span>
+        </button>
+        <div className="header-actions">
+          {game && (
+            <button className="text-button return-table" onClick={() => navigate('live')}>
+              Back to the table ↗
+            </button>
+          )}
+          <button
+            className="theme-switch"
+            onClick={() => setTheme(theme === 'parchment' ? 'walnut' : 'parchment')}
+            aria-label={`Switch to ${theme === 'parchment' ? 'Dark Walnut' : 'Parchment'} theme`}
+          >
+            <span aria-hidden="true">{theme === 'parchment' ? '◐' : '☼'}</span>
+            <span>{theme === 'parchment' ? 'Dark Walnut' : 'Parchment'}</span>
+          </button>
+        </div>
+      </header>
+      {game && !['home', 'setup', 'join'].includes(view) && (
+        <nav className="game-nav" aria-label="Game navigation">
+          <div>
+            {(['live', 'insights', 'history', 'room'] as const).map((tab, i) => (
+              <button
+                aria-current={view === tab ? 'page' : undefined}
+                key={tab}
+                onClick={() => navigate(tab)}
+              >
+                <span aria-hidden="true">{['⬡', '▥', '≡', '⌂'][i]}</span>
+                {tab === 'live'
+                  ? 'Live table'
+                  : tab === 'room'
+                    ? host
+                      ? 'Game room'
+                      : 'Room'
+                    : tab[0].toUpperCase() + tab.slice(1)}
+              </button>
+            ))}
+          </div>
+          <span className="nav-meta">
+            {shared.code ? `ROOM ${shared.code}` : 'LOCAL TABLE'}
+            <i /> {role}
+          </span>
+        </nav>
+      )}
+      <main id="main">
+        {(saveError || shared.error || notice) && (
+          <div className="warning" role="alert">
+            {shared.error || notice || saveError}
+            {stale && (
+              <button onClick={() => window.location.reload()}>Reload saved session</button>
+            )}
+            {shared.pending && (
+              <button disabled={shared.busy || !shared.online} onClick={() => void shared.retry()}>
+                Retry pending command safely
+              </button>
+            )}
+          </div>
+        )}
+        {corrupt && !shared.code ? (
+          <section className="setup-sheet">
+            <p className="eyebrow">YOUR LOCAL ARCHIVE</p>
+            <h1>Your saved game needs attention</h1>
+            <p>The original save has not been overwritten. Discard it to start fresh.</p>
+            <button
+              className="danger"
+              onClick={() =>
+                ask(
+                  'Discard saved data',
+                  'Permanently remove the unreadable save from this browser.',
+                  () => {
+                    try {
+                      initial.adapter?.discard();
+                      setCorrupt(false);
+                      setStale(false);
+                      setSaveError('');
+                    } catch {
+                      setSaveError('Could not discard saved data.');
+                    }
+                  },
+                )
+              }
+            >
+              Discard saved data
+            </button>
+          </section>
+        ) : view === 'home' ? (
+          <>
+            <section className="home-hero">
+              <div className="home-copy">
+                <p className="eyebrow">
+                  <span className="small-rule" /> FOR THE LOVE OF GAME NIGHT
+                </p>
+                <h1>
+                  Every roll.
+                  <br />
+                  Every turn.
+                  <br />
+                  <em>A story to tell.</em>
+                </h1>
+                <p>
+                  Your dice, your pace, your people. A thoughtful little companion for the island
+                  you’re building together.
+                </p>
+                <div className="home-actions">
+                  <button className="primary" onClick={chooseLocal}>
+                    {localGame ? 'Resume local game' : 'Play on this device'} <span>→</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSetupMode('shared');
+                      navigate('setup');
+                    }}
+                  >
+                    Create a shared table
+                  </button>
+                </div>
+                <button className="text-button join-link" onClick={() => navigate('join')}>
+                  Have a room code? Join your friends ↗
+                </button>
+                {shared.code && (
+                  <button className="text-button" onClick={() => navigate('live')}>
+                    Resume room {shared.code} →
+                  </button>
+                )}
+              </div>
+              <div className="island-art">
+                <Landscape />
+                <span className="map-caption">AN ISLAND OF POSSIBILITY · A LEDGER OF CHANCE</span>
+              </div>
+            </section>
+            <div className="home-footnotes">
+              <div>
+                <b>01 / Keep the game moving</b>
+                <p>Quick dice entry. Clear turn timing. More time at the table.</p>
+              </div>
+              <div>
+                <b>02 / Share the same story</b>
+                <p>One device or a room full of friends, all following along.</p>
+              </div>
+              <div>
+                <b>03 / Look a little closer</b>
+                <p>See where the dice wandered and how the evening unfolded.</p>
+              </div>
+            </div>
+          </>
+        ) : view === 'setup' ? (
+          <section className="setup-sheet">
+            <button className="text-button back" onClick={() => navigate('home')}>
+              ← Back
+            </button>
+            <p className="eyebrow">BEFORE THE FIRST ROLL</p>
+            <h1>{setupMode === 'local' ? 'Gather around.' : 'Make room for everyone.'}</h1>
+            <p>Set names, colors, and turn order. There’s a seat for everyone at your table.</p>
+            {setupMode === 'shared' && (
+              <>
+                <div className="inset-note">
+                  {multiplayerConfigured
+                    ? 'Players can join now or later. You can play every unclaimed seat as host.'
+                    : 'Shared tables need Firebase setup in this installation. Local games are ready to play. See the Firebase setup guide in the repository.'}
+                </div>
+                <label className="host-name">
+                  Your name at the table
+                  <input
+                    required
+                    maxLength={40}
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Table keeper"
+                  />
+                </label>
+              </>
+            )}
+            <RosterEditor
+              initial={roster}
+              locked={
+                shared.busy ||
+                (setupMode === 'shared' && (!multiplayerConfigured || !displayName.trim()))
+              }
+              onSave={(players) => {
+                if (setupMode === 'local') startLocal(players);
+                else
+                  void shared.create(players, displayName).then((ok) => {
+                    if (ok) navigate('room');
+                  });
+              }}
+              label={
+                setupMode === 'local'
+                  ? 'Start game →'
+                  : shared.busy
+                    ? 'Creating table…'
+                    : 'Create shared table →'
+              }
+            />
+          </section>
+        ) : view === 'join' ? (
+          <section className="join-sheet">
+            <button className="text-button back" onClick={() => navigate('home')}>
+              ← Back
+            </button>
+            <p className="eyebrow">PULL UP A CHAIR</p>
+            <h1>Your table is waiting.</h1>
+            <p>Join as a spectator, then ask the host for your seat. No account to create.</p>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void shared.connect(roomCode, displayName).then((ok) => {
+                  if (ok) navigate('room');
+                });
+              }}
+            >
+              <label>
+                Room code
+                <input
+                  required
+                  pattern="[A-Fa-f0-9]{12}"
+                  maxLength={12}
+                  autoCapitalize="characters"
+                  className="code-input"
+                  value={roomCode}
+                  onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                  placeholder="12-character code"
+                />
+              </label>
+              <label>
+                Your display name
+                <input
+                  required
+                  maxLength={40}
+                  autoComplete="nickname"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="How should we call you?"
+                />
+              </label>
+              {!multiplayerConfigured && (
+                <p className="inset-note">
+                  Firebase isn’t configured in this installation. You can still start a local game.
+                </p>
+              )}
+              <button className="primary" disabled={!multiplayerConfigured || shared.busy}>
+                {shared.busy ? 'Finding your table…' : 'Join the table →'}
+              </button>
+            </form>
+          </section>
+        ) : shared.code && !shared.room ? (
+          <section className="setup-sheet" aria-busy="true">
+            <h1>Opening the ledger…</h1>
+            <p>Waiting for the shared table.</p>
+            <button
+              onClick={() => {
+                shared.leave();
+                navigate('home');
+              }}
+            >
+              Return home
+            </button>
+          </section>
+        ) : game ? (
+          <>
+            {view === 'room' ? (
+              <RoomView
+                game={game}
+                shared={shared}
+                host={host}
+                onCommand={dispatch}
+                onNotice={setNotice}
+                onPlay={() => navigate('live')}
+                onLeave={() => {
+                  shared.leave();
+                  navigate('home');
+                }}
+                ask={ask}
+                onNew={() => {
+                  setRoster(game.players);
+                  commit(null);
+                  navigate('setup');
+                  setSetupMode('local');
+                }}
+              />
+            ) : view === 'insights' || (game.phase === 'finished' && view === 'live') ? (
+              <>
+                <Insights game={game} recap={game.phase === 'finished'} />
+                {game.phase === 'finished' && (
+                  <div className="recap-actions">
+                    <button onClick={() => navigate('history')}>Revisit the evening</button>
+                    <button className="primary" onClick={() => navigate('room')}>
+                      Back to game room →
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : view === 'history' ? (
+              <>
+                <div className="view-heading">
+                  <p className="eyebrow">THE EVENING, UNFOLDED</p>
+                  <h1>One roll leads to another.</h1>
+                  <p>A read-only look back. Browsing never changes the live table.</p>
+                </div>
+                <div className="history-layout">
+                  <section className="history-inspect">
+                    <div
+                      className={`history-view${selectedIndex < game.rolls.length - 1 ? ' viewing-past' : ''}`}
+                    >
+                      <span>
+                        {selected
+                          ? selectedIndex === game.rolls.length - 1
+                            ? `Latest roll #${selectedIndex + 1}`
+                            : `Viewing past roll #${selectedIndex + 1} of ${game.rolls.length}`
+                          : 'Ready for your first roll'}
+                      </span>
+                      {selectedIndex < game.rolls.length - 1 && (
+                        <button onClick={() => setSelection(game.rolls.length - 1)}>
+                          Back to latest
+                        </button>
+                      )}
+                    </div>
+                    <RollDisplay
+                      roll={selected}
+                      seatLabel={`Seat ${selectedSeat + 1} · ${game.players[selectedSeat]?.name}`}
+                      rolling={false}
+                      fresh={false}
+                    />
+                  </section>
+                  <RollHistory
+                    rolls={game.rolls}
+                    players={game.players}
+                    selection={selectedIndex}
+                    onSelect={setSelection}
+                  />
+                </div>
+                <section className="ledger-section">
+                  <h2>Notes from the table</h2>
+                  <ol className="event-timeline">
+                    {(shared.code
+                      ? shared.events.filter((e) => e.text !== 'Dice recorded')
+                      : [...(game.events ?? [])].reverse()
+                    ).map((e) => (
+                      <li key={e.id}>
+                        <time>
+                          {new Date(e.at).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </time>
+                        <span>{e.text}</span>
+                      </li>
+                    ))}
+                  </ol>
+                  {!(shared.code ? shared.events.length : game.events?.length) && (
+                    <p className="muted">Turn changes and host corrections will be noted here.</p>
+                  )}
+                  {shared.hasMoreEvents && (
+                    <button onClick={shared.loadMoreEvents}>Load earlier notes</button>
+                  )}
+                </section>
+              </>
+            ) : (
+              <Live
+                game={game}
+                shared={shared}
+                host={host}
+                role={role}
+                controls={controls}
+                now={now + (shared.code ? shared.offset : 0)}
+                motion={motion}
+                dispatch={dispatch}
+                record={record}
+                navigate={navigate}
+                inspect={(index) => {
+                  navigate('history');
+                  setSelection(index);
+                }}
+              />
+            )}
+          </>
+        ) : (
+          <section className="setup-sheet">
+            <h1>A fresh page awaits.</h1>
+            <button onClick={chooseLocal}>Start a local game</button>
+          </section>
+        )}
+      </main>
+      <footer className="app-footer">
+        <span
+          className={
+            shared.code && (!shared.online || !shared.synced)
+              ? 'sync-status offline'
+              : 'sync-status'
+          }
+          role="status"
+        >
+          <i />
+          {shared.code
+            ? !shared.online
+              ? 'Offline · shared controls locked'
+              : !shared.synced
+                ? 'Connecting to the table…'
+                : `Live room · ${role}`
+            : saveError
+              ? saveError
+              : localGame
+                ? 'Saved in this browser · Local table'
+                : 'Made for good company & a little chance'}
+        </span>
+        <span>
+          THE SETTLER’S LEDGER <b>✦</b> {theme === 'walnut' ? 'DARK WALNUT' : 'PARCHMENT'} EDITION
+        </span>
+      </footer>
+      {confirmation && (
+        <Confirm
+          title={confirmation.title}
+          onCancel={() => setConfirmation(null)}
+          onConfirm={() => {
+            confirmation.action();
+            setConfirmation(null);
+          }}
+        >
+          {confirmation.body}
+        </Confirm>
+      )}
+    </div>
+  );
 }
