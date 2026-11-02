@@ -17,15 +17,21 @@ export function PlayerLobby({ shared, host, onDirtyChange, ask }: Props) {
   const [dirty, setDirty] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const command = useRef(shared.command);
+  const focusedName = useRef<string | null>(null);
   command.current = shared.command;
   const locked = shared.busy || !shared.online || !shared.synced || !!shared.pending;
   const finished = shared.room!.game.phase === 'finished';
   const selected = players.find((p) => shared.room!.seats[p.id] === shared.uid);
   const valid = validRoster(draft);
   useEffect(() => {
-    if (!dirty) setDraft(players);
-    else if (JSON.stringify(normalized(draft)) === JSON.stringify(players)) {
-      setDraft(players);
+    if (!dirty) {
+      const next = players.map((p) =>
+        p.id === focusedName.current
+          ? { ...p, name: draft.find((d) => d.id === p.id)?.name ?? p.name }
+          : p,
+      );
+      if (JSON.stringify(next) !== JSON.stringify(draft)) setDraft(next);
+    } else if (JSON.stringify(normalized(draft)) === JSON.stringify(players)) {
       setDirty(false);
       setSaveFailed(false);
       onDirtyChange(false);
@@ -118,6 +124,17 @@ export function PlayerLobby({ shared, host, onDirtyChange, ask }: Props) {
                         maxLength={40}
                         disabled={!shared.online || !shared.synced}
                         value={player.name}
+                        onFocus={() => {
+                          focusedName.current = player.id;
+                        }}
+                        onBlur={() => {
+                          focusedName.current = null;
+                          setDraft((current) =>
+                            current.map((p) =>
+                              p.id === player.id ? { ...p, name: p.name.trim() } : p,
+                            ),
+                          );
+                        }}
                         aria-invalid={!player.name.trim() || undefined}
                         onChange={(e) =>
                           edit(
