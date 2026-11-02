@@ -3,7 +3,7 @@ import { chromium } from '@playwright/test';
 import { spawn } from 'node:child_process';
 import process from 'node:process';
 import console from 'node:console';
-import { setTimeout, clearTimeout } from 'node:timers';
+import { waitForServer } from './wait-for-server.mjs';
 import { readFileSync } from 'node:fs';
 import { URL } from 'node:url';
 const real = process.env.LEDGER_REAL_FIREBASE === 'true';
@@ -16,7 +16,7 @@ try {
   // Drive the actual frontend with two isolated browsers and a demo-only project.
   server = spawn(
     process.execPath,
-    ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '5174'],
+    ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '5174', '--strictPort'],
     {
       env: {
         ...process.env,
@@ -30,16 +30,7 @@ try {
       windowsHide: true,
     },
   );
-  await new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('Vite did not start')), 20000);
-    server.stdout.on('data', (d) => {
-      if (d.toString().includes('Local:')) {
-        clearTimeout(timer);
-        resolve();
-      }
-    });
-    server.on('error', reject);
-  });
+  await waitForServer(server, 'http://127.0.0.1:5174/catan-stats-web/');
   browser = await chromium.launch();
   const contextA = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   const contextB = await browser.newContext({ viewport: { width: 390, height: 844 } });
@@ -66,7 +57,7 @@ try {
   await b.getByRole('button', { name: 'Next turn →' }).click();
   await a.locator('.active-player').filter({ hasText: 'Player 2' }).waitFor();
   assert.equal(await b.getByRole('button', { name: 'Record 7', exact: true }).isDisabled(), true);
-  await a.screenshot({ path: 'docs/multiplayer.png', fullPage: true });
+  await a.screenshot({ path: 'test-results/multiplayer.png', fullPage: true });
   await contextB.setOffline(true);
   await b.getByRole('status').filter({ hasText: 'Offline' }).waitFor();
   assert.equal(await b.getByRole('button', { name: 'Roll dice', exact: true }).isDisabled(), true);
