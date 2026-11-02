@@ -145,7 +145,11 @@ export function applyWireCommand(
       },
     },
     text:
-      (command.type === 'next' ? 'Turn completed' : next.game.events?.at(-1)?.text) ??
+      (command.type === 'claim'
+        ? 'Player selection updated'
+        : command.type === 'next'
+          ? 'Turn completed'
+          : next.game.events?.at(-1)?.text) ??
       (command.type === 'begin'
         ? 'Host opened the table'
         : command.type === 'assign'

@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { applyGameCommand } from '../src/domain/commands';
 import { createGame, elapsed } from '../src/domain/reducer';
 import { playerStats } from '../src/domain/selectors';
 import { parseGame } from '../src/storage/session';
 import { parseRoom, transition, type Room, type RoomCommand } from '../src/multiplayer/model';
+import { newRoomCode } from '../src/multiplayer/store';
 const players = [
   { id: 'p0', name: 'Alex', color: '#bb4938' },
   { id: 'p1', name: 'Alex', color: '#3277a0' },
@@ -35,6 +36,38 @@ function act(
   );
 }
 describe('authoritative command boundaries', () => {
+  it('generates four numeric digits and retains leading zeroes', () => {
+    const random = vi.spyOn(crypto, 'getRandomValues').mockImplementationOnce((array) => {
+      (array as Uint32Array)[0] = 42;
+      return array;
+    });
+    try {
+      expect(newRoomCode()).toBe('0042');
+    } finally {
+      random.mockRestore();
+    }
+  });
+  it('lets a guest choose, switch, and release only their own free player', () => {
+    const base = { ...fresh(), started: false, seats: {} };
+    const claimed = act(base, 'guest', { type: 'claim', playerId: 'p0' });
+    expect(claimed.seats).toEqual({ p0: 'guest' });
+    expect(claimed.game).toBe(base.game);
+    const switched = act(claimed, 'guest', { type: 'claim', playerId: 'p1' });
+    expect(switched.seats).toEqual({ p1: 'guest' });
+    expect(act(switched, 'guest', { type: 'claim', playerId: null }).seats).toEqual({});
+    expect(() => act(fresh(), 'spectator', { type: 'claim', playerId: 'p0' })).toThrow(
+      /already been chosen/,
+    );
+    expect(() => act(base, 'guest', { type: 'claim', playerId: 'missing' })).toThrow(
+      /current list/,
+    );
+    expect(() =>
+      act({ ...base, game: { ...base.game, phase: 'finished', activeTurn: null } }, 'guest', {
+        type: 'claim',
+        playerId: 'p0',
+      }),
+    ).toThrow(/finished/);
+  });
   it('allows only the active seat or host to roll and operate timers', () => {
     for (const command of [
       { type: 'roll', total: 7, dice: null },

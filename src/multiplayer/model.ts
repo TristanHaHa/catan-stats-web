@@ -22,7 +22,10 @@ export type Member = {
   revoked: boolean;
 };
 export type RoomCommand =
-  GameCommand | { type: 'begin' } | { type: 'assign'; playerId: string; memberUid: string | null };
+  | GameCommand
+  | { type: 'begin' }
+  | { type: 'claim'; playerId: string | null }
+  | { type: 'assign'; playerId: string; memberUid: string | null };
 export type Envelope = {
   id: string;
   revision: number;
@@ -71,10 +74,25 @@ export function transition(room: Room, uid: string, envelope: Envelope, now: num
   const host = room.hostUid === uid;
   const admin =
     command.type === 'begin' || command.type === 'assign' || hostOnly(command as GameCommand);
-  if (admin ? !host : !canOperate(room, uid))
+  if (command.type !== 'claim' && (admin ? !host : !canOperate(room, uid)))
     throw new Error('You do not have permission for this action.');
   let next: Room;
-  if (command.type === 'begin') {
+  if (command.type === 'claim') {
+    if (room.game.phase === 'finished') throw new Error('This game has finished.');
+    if (command.playerId !== null && !room.game.players.some((p) => p.id === command.playerId))
+      throw new Error('Choose a player from the current list.');
+    if (
+      command.playerId !== null &&
+      room.seats[command.playerId] &&
+      room.seats[command.playerId] !== uid
+    )
+      throw new Error('That player has already been chosen. Please choose another.');
+    const seats = Object.fromEntries(
+      Object.entries(room.seats).filter(([, owner]) => owner !== uid),
+    );
+    if (command.playerId !== null) seats[command.playerId] = uid;
+    next = { ...room, seats };
+  } else if (command.type === 'begin') {
     if (room.started) throw new Error('The game has already started.');
     next = { ...room, started: true };
   } else if (command.type === 'assign') {

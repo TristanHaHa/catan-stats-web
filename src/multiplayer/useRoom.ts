@@ -253,10 +253,6 @@ export function useRoom() {
     command,
     leave,
     retry: () => pending && command(pending.command, pending),
-    requestSeat: (playerId: string | null) =>
-      run(async () => {
-        await invoke({ operation: 'request-seat', code, playerId });
-      }),
     manageMember: (memberUid: string, revoked: boolean) =>
       run(async () => {
         await invoke({ operation: 'member', code, memberUid, revoked });

@@ -214,7 +214,7 @@ export function Live({
                 : shared.pending
                   ? 'A command is pending. Retry it safely before taking another action.'
                   : role === 'Spectator'
-                    ? 'You’re watching the table. Request a seat in the game room to play.'
+                    ? 'You’re watching the table. Choose an available player in the room to play.'
                     : `It’s ${active?.name}’s turn. Your controls return when your seat is active.`}
             </p>
           )}

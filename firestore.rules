@@ -1,4 +1,9 @@
 rules_version = '2';
+// Model: rooms/{code} is a v3 game with immutable host UID and creation time.
+// members/{uid} holds only in-room display name, membership and approximate presence.
+// receipts and events link each room change to its authenticated actor and revision.
+// roomCodes/{fourDigits} reserves only a creation timestamp; exact lookup is allowed,
+// enumeration and overwrites are denied. Legacy 12-character rooms remain accessible.
 service cloud.firestore {
   match /databases/{database}/documents {
     function signed() { return request.auth != null; }
@@ -29,7 +34,7 @@ service cloud.firestore {
       return t.keys().hasAll(['id','playerId','segments','runningSegment','completedAt']) &&
         t.keys().hasOnly(['id','playerId','segments','runningSegment','completedAt']) &&
         t.id == id && t.playerId == player && t.completedAt == null &&
-        (segment == null ? t.segments == {} && t.runningSegment == null :
+        (segment == '' ? t.segments == {} && t.runningSegment == null :
           t.runningSegment == segment && t.segments.size() == 1 && t.segments.keys().hasOnly([segment]) && t.segments[segment] == {'startedAt': request.time, 'endedAt': null});
     }
     function singleAdded(before, after, id) {
@@ -85,6 +90,15 @@ service cloud.firestore {
          c.kind == 'pause' && pauseChange(a.game,b.game) ||
          c.kind == 'next' && nextChange(a.game,b.game,c.id,a.nextSeat[a.game.activeTurn.playerId]));
     }
+    function seatClaim(a,b) {
+      let removed = a.seats.keys().removeAll(b.seats.keys());
+      let added = b.seats.keys().removeAll(a.seats.keys());
+      return b.lastCommand.kind == 'claim' && a.game.phase != 'finished' &&
+        b.diff(a).affectedKeys().hasOnly(['seats','revision','updatedAt','lastCommand']) &&
+        b.seats.diff(a.seats).changedKeys().size() == 0 && removed.size() <= 1 && added.size() <= 1 &&
+        (removed.size() == 0 || a.seats[removed[0]] == request.auth.uid) &&
+        (added.size() == 0 || b.seats[added[0]] == request.auth.uid);
+    }
     function linkedAudit(code,b) {
       let c = b.lastCommand;
       let receipt = getAfter(/databases/$(database)/documents/rooms/$(code)/receipts/$(request.auth.uid+'_'+c.id)).data;
@@ -98,7 +112,7 @@ service cloud.firestore {
         r.lastCommand.actorUid == request.auth.uid && id == request.auth.uid+'_'+r.lastCommand.id;
     }
     function validNote(code,e) {
-      return host(code) || e.kind == 'roll' && e.text == 'Dice recorded' ||
+      return e.kind == 'claim' ? e.text == 'Player selection updated' : host(code) || e.kind == 'roll' && e.text == 'Dice recorded' ||
         e.kind == 'start' && e.text == 'Turn timer started / resumed' ||
         e.kind == 'pause' && e.text == 'Turn timer paused' ||
         e.kind == 'next' && e.text == 'Turn completed';
@@ -106,13 +120,14 @@ service cloud.firestore {
     match /rooms/{code} {
       allow get: if admitted(code);
       allow list, delete: if false;
-      allow create: if signed() && code.matches('^[A-F0-9]{12}$') && shape(request.resource.data) &&
+      allow create: if signed() && (code.matches('^[A-F0-9]{12}$') || code.matches('^[0-9]{4}$') &&
+        getAfter(/databases/$(database)/documents/roomCodes/$(code)).data.createdAt == request.time) && shape(request.resource.data) &&
         request.resource.data.hostUid == request.auth.uid && request.resource.data.revision == 0 &&
         request.resource.data.started == false && request.resource.data.createdAt == request.time &&
         request.resource.data.seats == {} && request.resource.data.game.phase == 'ready' &&
         request.resource.data.game.completedTurns == {} && request.resource.data.game.rolls == {} &&
         request.resource.data.lastCommand.kind == 'create' &&
-        freshTurn(request.resource.data.game.activeTurn, request.resource.data.game.players[0].id,request.resource.data.game.activeTurn.id,null) &&
+        freshTurn(request.resource.data.game.activeTurn, request.resource.data.game.players[0].id,request.resource.data.game.activeTurn.id,'') &&
         getAfter(/databases/$(database)/documents/accounts/$(request.auth.uid)).data.latestCode == code &&
         getAfter(/databases/$(database)/documents/accounts/$(request.auth.uid)).data.lastCreatedAt == request.time &&
         getAfter(/databases/$(database)/documents/rooms/$(code)/members/$(request.auth.uid)).data.revoked == false;
@@ -122,7 +137,8 @@ service cloud.firestore {
         request.resource.data.lastCommand.baseRevision == resource.data.revision &&
         request.resource.data.lastCommand.turnId == (resource.data.game.activeTurn == null ? null : resource.data.game.activeTurn.id) &&
         linkedAudit(code,request.resource.data) &&
-        (resource.data.hostUid == request.auth.uid && request.resource.data.lastCommand.kind in ['roll','start','pause','next','begin','assign','roster','end','reset','undo-roll','correct-roll','active','member'] || gameplay(resource.data,request.resource.data));
+        (request.resource.data.lastCommand.kind == 'claim' ? seatClaim(resource.data,request.resource.data) :
+          resource.data.hostUid == request.auth.uid && request.resource.data.lastCommand.kind in ['roll','start','pause','next','begin','assign','roster','end','reset','undo-roll','correct-roll','active','member'] || gameplay(resource.data,request.resource.data));
       match /members/{uid} {
         allow get: if signed() && (request.auth.uid == uid || admitted(code));
         allow list: if admitted(code);
@@ -157,6 +173,14 @@ service cloud.firestore {
             getAfter(/databases/$(database)/documents/rooms/$(code)/members/$(request.auth.uid)).data.joinedAt == request.time &&
             request.resource.data.text == getAfter(/databases/$(database)/documents/rooms/$(code)/members/$(request.auth.uid)).data.name+' joined the room');
       }
+    }
+    match /roomCodes/{code} {
+      allow get: if signed();
+      allow list, update, delete: if false;
+      allow create: if signed() && code.matches('^[0-9]{4}$') &&
+        request.resource.data == {'createdAt':request.time} &&
+        !exists(/databases/$(database)/documents/rooms/$(code)) &&
+        future(code).hostUid == request.auth.uid && future(code).createdAt == request.time;
     }
     match /accounts/{uid} {
       allow get: if signed() && uid == request.auth.uid;

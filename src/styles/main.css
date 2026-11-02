@@ -51,6 +51,175 @@ body {
 html {
   scroll-padding-block: 24px 110px;
 }
+
+/* Shared lobby: player identity, ownership, and presence in the same row. */
+.players-panel {
+  margin-block: 28px;
+}
+.players-panel > p {
+  max-width: 760px;
+}
+.players-panel .section-heading h2 {
+  margin-bottom: 0;
+}
+.player-count {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+.player-save-status {
+  font-size: 0.8125rem;
+  min-height: 1.6em;
+  color: var(--accent);
+  margin-block: 16px 20px;
+}
+.lobby-players {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+.lobby-player,
+.lobby-watcher {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+}
+.lobby-player.your-player {
+  border-color: var(--accent);
+}
+.lobby-player-main {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.lobby-player-name {
+  flex: 1;
+  min-width: 0;
+}
+.lobby-player-name input {
+  width: 100%;
+  max-width: 440px;
+}
+.lobby-player-name h3 {
+  font-size: 1.125rem;
+  margin: 0 0 6px;
+  overflow-wrap: anywhere;
+}
+.lobby-player-name small,
+.lobby-watcher small {
+  display: block;
+  color: var(--muted);
+  margin-top: 6px;
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+.connection-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.connection-badge i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.connection-badge.connected {
+  color: var(--accent);
+}
+.connection-badge.connected i {
+  background: var(--accent);
+}
+.connection-badge.disconnected i {
+  background: transparent;
+  border: 1px solid var(--muted);
+}
+.lobby-player-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 16px 0 0 74px;
+}
+.player-edit-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-right: auto;
+}
+.player-edit-controls button {
+  width: 44px;
+  min-height: 44px;
+  padding: 6px;
+}
+.player-edit-controls input {
+  width: 44px;
+}
+.your-player-label {
+  color: var(--accent);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.choose-player {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.lobby-watcher {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: transparent;
+}
+.lobby-watcher > div {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.lobby-watcher b {
+  font-size: 0.9375rem;
+}
+@media (max-width: 620px) {
+  .lobby-player,
+  .lobby-watcher {
+    padding: 18px;
+  }
+  .lobby-player-main {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .lobby-player-main > .seat {
+    display: none;
+  }
+  .lobby-player-main > .connection-badge {
+    margin-left: 37px;
+    flex-basis: calc(100% - 37px);
+  }
+  .lobby-player-actions {
+    margin-left: 37px;
+    gap: 12px;
+  }
+  .player-edit-controls {
+    width: 100%;
+  }
+  .lobby-player-actions > button {
+    flex: 1;
+  }
+  .lobby-watcher {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .lobby-watcher > div {
+    flex-basis: 100%;
+  }
+}
 button,
 input,
 select {

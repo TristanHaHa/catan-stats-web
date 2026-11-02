@@ -199,7 +199,8 @@ export function Lobby(props: Props) {
                 Room code
                 <input
                   required
-                  pattern="[A-Fa-f0-9]{12}"
+                  pattern="([0-9]{4}|[A-Fa-f0-9]{12})"
+                  inputMode="numeric"
                   maxLength={12}
                   autoCapitalize="characters"
                   autoCorrect="off"
@@ -209,7 +210,7 @@ export function Lobby(props: Props) {
                   onChange={(e) =>
                     props.setRoomCode(e.target.value.toUpperCase().replace(/\s/g, ''))
                   }
-                  placeholder="12-character code"
+                  placeholder="4-digit code"
                   aria-describedby="code-hint"
                 />
               </label>
@@ -247,7 +248,7 @@ export function Lobby(props: Props) {
               <span>1</span>
               <div>
                 <b>Create your lobby</b>
-                <p>Set up seats and turn order. You’re the host.</p>
+                <p>Set up players and turn order. You’re the host.</p>
               </div>
             </li>
             <li>
@@ -260,9 +261,10 @@ export function Lobby(props: Props) {
             <li>
               <span>3</span>
               <div>
-                <b>Choose seats. Start playing.</b>
+                <b>Choose players. Start playing.</b>
                 <p>
-                  Approve friends’ seat requests, then start. Dice, turns, and stats stay in sync.
+                  Friends choose their own player. Start when you’re ready. Dice, turns, and stats
+                  stay in sync.
                 </p>
               </div>
             </li>

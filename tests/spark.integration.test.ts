@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { afterAll, beforeAll, expect, it } from 'vitest';
+import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import { readFile } from 'node:fs/promises';
 import { initializeApp, deleteApp, type FirebaseApp } from 'firebase/app';
 import { connectAuthEmulator, getAuth, signInAnonymously } from 'firebase/auth';
@@ -69,6 +69,11 @@ it.skipIf(!enabled)(
     expect(
       (await host.api({ operation: 'create', name: 'Host', players, requestId })).data.code,
     ).toBe(code);
+    expect(code).toMatch(/^[0-9]{4}$/);
+    expect(Object.keys((await getDoc(doc(host.db, 'roomCodes', code))).data()!)).toEqual([
+      'createdAt',
+    ]);
+    await assertFails(getDocs(collection(host.db, 'roomCodes')));
     const ref = doc(host.db, 'rooms', code);
     const read = async () => (await getDoc(ref)).data() as WireRoom;
     const envelope = (wire: WireRoom, command: RoomCommand): Envelope => ({
@@ -77,19 +82,56 @@ it.skipIf(!enabled)(
       turnId: wire.game.activeTurn?.id ?? null,
       command,
     });
-    const command = async (who: Awaited<ReturnType<typeof client>>, c: RoomCommand) =>
-      who.api({ operation: 'command', code, envelope: envelope(await read(), c) });
+    const command = async (who: Awaited<ReturnType<typeof client>>, c: RoomCommand) => {
+      try {
+        return await who.api({ operation: 'command', code, envelope: envelope(await read(), c) });
+      } catch (error) {
+        throw new Error(
+          `${c.type} ${'playerId' in c ? c.playerId : ''}: ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error },
+        );
+      }
+    };
     await assertFails(getDoc(doc(outsider.db, 'rooms', code)));
     await assertFails(getDocs(collection(host.db, 'rooms')));
     for (const who of [active, waiting, spectator])
       await who.api({ operation: 'join', code, name: 'Alex' });
+    const simultaneous = await read();
+    const choices = await Promise.allSettled(
+      [active, waiting].map((who) =>
+        who.api({
+          operation: 'command',
+          code,
+          envelope: envelope(simultaneous, { type: 'claim', playerId: 'p0' }),
+        }),
+      ),
+    );
+    expect(choices.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(choices.filter((result) => result.status === 'rejected')).toHaveLength(1);
+    const owner = (await read()).seats.p0 === active.uid ? active : waiting;
+    const beforeRelease = await read();
+    expect(
+      applyWireCommand(
+        beforeRelease,
+        owner.uid,
+        envelope(beforeRelease, { type: 'claim', playerId: null }),
+      ).room.game,
+    ).toEqual(beforeRelease.game);
+    await command(owner, { type: 'claim', playerId: null });
+    await Promise.all([
+      command(active, { type: 'claim', playerId: 'p0' }),
+      command(waiting, { type: 'claim', playerId: 'p1' }),
+      command(host, {
+        type: 'roster',
+        players: players.map((p, i) => (i === 0 ? { ...p, name: 'Live Alex' } : p)),
+      }),
+    ]);
+    expect((await read()).game.players[0].name).toBe('Live Alex');
+    expect((await read()).seats).toEqual({ p0: active.uid, p1: waiting.uid });
+    await expect(command(spectator, { type: 'claim', playerId: 'p0' })).rejects.toThrow(
+      /already been chosen/,
+    );
     await command(host, { type: 'begin' });
-    await active.api({ operation: 'request-seat', code, playerId: 'p0' });
-    await waiting.api({ operation: 'request-seat', code, playerId: 'p0' });
-    await command(host, { type: 'assign', playerId: 'p0', memberUid: active.uid });
-    await waiting.api({ operation: 'heartbeat', code });
-    await waiting.api({ operation: 'request-seat', code, playerId: null });
-    await command(host, { type: 'assign', playerId: 'p1', memberUid: waiting.uid });
     await expect(
       command(spectator, { type: 'assign', playerId: 'p0', memberUid: spectator.uid }),
     ).rejects.toThrow();
@@ -137,6 +179,70 @@ it.skipIf(!enabled)(
     }
     for (const who of [waiting, spectator, outsider])
       await assertFails(forge(who.db, who.uid, await read(), () => {}));
+    const outsiderClaim = await read();
+    await assertFails(
+      forge(
+        outsider.db,
+        outsider.uid,
+        outsiderClaim,
+        (r) => {
+          r.game = outsiderClaim.game;
+        },
+        'claim',
+        'Player selection updated',
+      ),
+    );
+    const unlinked = await read();
+    const release = envelope(unlinked, { type: 'claim', playerId: null });
+    await assertFails(
+      writeBatch(active.db)
+        .set(doc(active.db, 'rooms', code), applyWireCommand(unlinked, active.uid, release).room)
+        .commit(),
+    );
+    await assertFails(
+      writeBatch(outsider.db)
+        .set(doc(outsider.db, 'roomCodes', code), { createdAt: serverTimestamp() })
+        .commit(),
+    );
+    // A claim cannot steal, assign other identities, change gameplay, or escalate authority.
+    for (const attack of [
+      (r: WireRoom) => {
+        r.seats.p1 = active.uid;
+      },
+      (r: WireRoom) => {
+        delete r.seats.p1;
+      },
+      (r: WireRoom) => {
+        r.seats.p0 = spectator.uid;
+      },
+      (r: WireRoom) => {
+        r.hostUid = active.uid;
+      },
+      (r: WireRoom) => {
+        r.game.players[0].name = 'Forged name';
+      },
+      (r: WireRoom) => {
+        r.started = false;
+      },
+      (r: WireRoom) => {
+        (r as WireRoom & { injected?: boolean }).injected = true;
+      },
+    ]) {
+      const before = await read();
+      await assertFails(
+        forge(
+          active.db,
+          active.uid,
+          before,
+          (r) => {
+            r.game = { ...before.game, players: before.game.players.map((p) => ({ ...p })) };
+            attack(r);
+          },
+          'claim',
+          'Player selection updated',
+        ),
+      );
+    }
     await assertFails(forge(active.db, active.uid, await read(), () => {}, 'assign'));
     await assertFails(
       forge(active.db, active.uid, await read(), () => {}, 'roll', 'Host changed turn order'),
@@ -224,6 +330,25 @@ it.skipIf(!enabled)(
     expect(state.game.rolls).toHaveLength(1);
     await command(host, { type: 'reset' });
     expect(decodeRoom(await read()).game.rolls).toHaveLength(0);
+    // An occupied short code is retried without overwriting its original room.
+    const collider = await client('collision');
+    const random = vi.spyOn(crypto, 'getRandomValues').mockImplementationOnce((array) => {
+      (array as Uint32Array)[0] = Number(code);
+      return array;
+    });
+    try {
+      const created = await collider.api({
+        operation: 'create',
+        name: 'Other host',
+        players,
+        requestId: crypto.randomUUID(),
+      });
+      expect(created.data.code).toMatch(/^[0-9]{4}$/);
+      expect(created.data.code).not.toBe(code);
+      expect((await read()).hostUid).toBe(host.uid);
+    } finally {
+      random.mockRestore();
+    }
   },
   60000,
 );

@@ -2,8 +2,9 @@ import { useState } from 'react';
 import type { Game } from '../domain/types';
 import type { GameCommand } from '../domain/commands';
 import type { RoomConnection } from '../multiplayer/useRoom';
-import { Marker, RosterEditor } from './Primitives';
+import { RosterEditor } from './Primitives';
 import { InvitePanel } from './InvitePanel';
+import { PlayerLobby } from './PlayerLobby';
 
 type Props = {
   game: Game;
@@ -23,130 +24,6 @@ export function RoomView({ game, shared, host, onCommand, onPlay, onLeave, onNew
   const waiting = !!shared.room && !shared.room.started;
   const disabled =
     !!shared.code && (shared.busy || !shared.online || !shared.synced || !!shared.pending);
-  const member = shared.members.find((m) => m.uid === shared.uid);
-  const memberPanel = shared.code ? (
-    <section className="ledger-section">
-      <span className="eyebrow">CONNECTED COMPANY</span>
-      <h2>Who’s joined</h2>
-      <p className="note">
-        {waiting
-          ? 'Friends appear here when they join. Approve a seat request so they can take turns.'
-          : 'Offline seats stay in turn order. The timer continues until paused.'}
-      </p>
-      <ul className="member-list">
-        {shared.members.map((m) => {
-          const seat = game.players.find((p) => shared.room?.seats[p.id] === m.uid);
-          return (
-            <li key={m.uid}>
-              <div>
-                <b>
-                  {m.name}
-                  {m.uid === shared.uid ? ' (you)' : ''}
-                </b>
-                <small>
-                  {m.revoked
-                    ? 'Access removed'
-                    : m.uid === shared.room?.hostUid
-                      ? 'Host'
-                      : seat
-                        ? seat.name
-                        : 'Spectator'}{' '}
-                  · {Date.now() - m.lastSeen < 90000 ? 'Connected' : 'Away'}
-                </small>
-                {m.requestedSeat && (
-                  <small className="request-note">
-                    Requests {game.players.find((p) => p.id === m.requestedSeat)?.name}
-                  </small>
-                )}
-              </div>
-              {host && (
-                <div className="member-actions">
-                  <label className="sr-only" htmlFor={`assign-${m.uid}`}>
-                    Assign seat to {m.name}
-                  </label>
-                  <select
-                    id={`assign-${m.uid}`}
-                    value={seat?.id ?? ''}
-                    disabled={disabled || m.revoked}
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      if (id)
-                        ask(
-                          'Assign seat',
-                          'This replaces the seat’s previous owner and keeps all of its statistics.',
-                          () =>
-                            void shared.command({
-                              type: 'assign',
-                              playerId: id,
-                              memberUid: m.uid,
-                            }),
-                        );
-                      else if (seat)
-                        ask(
-                          'Release seat',
-                          'The player becomes a spectator. The seat and its statistics remain.',
-                          () =>
-                            void shared.command({
-                              type: 'assign',
-                              playerId: seat.id,
-                              memberUid: null,
-                            }),
-                        );
-                    }}
-                  >
-                    <option value="">Spectator</option>
-                    {game.players.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                        {shared.room?.seats[p.id] ? ' · claimed' : ''}
-                      </option>
-                    ))}
-                  </select>
-                  {m.requestedSeat && !m.revoked && (
-                    <button
-                      disabled={disabled}
-                      onClick={() =>
-                        void shared.command({
-                          type: 'assign',
-                          playerId: m.requestedSeat!,
-                          memberUid: m.uid,
-                        })
-                      }
-                    >
-                      Approve seat
-                    </button>
-                  )}
-                  {m.uid !== shared.uid && (
-                    <button
-                      className="text-button danger-text"
-                      disabled={disabled}
-                      onClick={() =>
-                        ask(
-                          m.revoked ? 'Restore member' : 'Remove member',
-                          m.revoked
-                            ? 'Allow this identity to rejoin the room.'
-                            : 'Remove room access and release their seat. Their recorded history remains.',
-                          () => void shared.manageMember(m.uid, !m.revoked),
-                        )
-                      }
-                    >
-                      {m.revoked ? 'Restore' : 'Remove'}
-                    </button>
-                  )}
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-      {host && (
-        <p className="note">
-          To promote a spectator into a new seat, add a player to the roster, save, then assign the
-          seat here. Lost browser identity? Have them rejoin and reassign their original seat.
-        </p>
-      )}
-    </section>
-  ) : null;
   return (
     <>
       <div className="view-heading">
@@ -157,14 +34,14 @@ export function RoomView({ game, shared, host, onCommand, onPlay, onLeave, onNew
         <p>
           {host
             ? waiting
-              ? 'Invite your friends, approve their seats, then start the game.'
+              ? 'Invite your friends, let everyone choose a player, then start the game.'
               : 'Manage players and keep your game running smoothly.'
             : waiting
-              ? 'Choose a seat below. The host will approve your request and start the game.'
+              ? 'Choose your player below. You’re ready as soon as you select a name.'
               : 'Manage your seat or return to the live game.'}
         </p>
       </div>
-      {shared.code && <InvitePanel code={shared.code} />}
+      {shared.code && host && <InvitePanel code={shared.code} />}
       {waiting && (
         <div className="lobby-ready-bar">
           <div>
@@ -172,14 +49,14 @@ export function RoomView({ game, shared, host, onCommand, onPlay, onLeave, onNew
             <p>
               {host
                 ? 'Friends can join later too. You can control any unclaimed seat.'
-                : member?.requestedSeat
-                  ? 'Seat requested. Waiting for the host to approve it.'
-                  : game.players.some((p) => shared.room?.seats[p.id] === shared.uid)
-                    ? 'Your seat is confirmed. You can open the game when it starts.'
-                    : 'Request a seat below, or stay and watch as a spectator.'}
+                : game.players.some((p) => shared.room?.seats[p.id] === shared.uid)
+                  ? 'Your player is selected. You can open the game when it starts.'
+                  : 'Choose your player below, or stay and watch.'}
             </p>
             {rosterDirty && (
-              <p className="request-note">Save your roster changes before starting.</p>
+              <p className="request-note">
+                Player changes are saving. You can start when they’re ready.
+              </p>
             )}
           </div>
           {host && (
@@ -209,87 +86,30 @@ export function RoomView({ game, shared, host, onCommand, onPlay, onLeave, onNew
           </button>
         </div>
       )}
-      <div className="room-layout">
-        {host && memberPanel}
-        <section className="ledger-section">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">THE PLAYER ROSTER</span>
-              <h2>{host ? 'Players & turn order' : 'Choose your seat'}</h2>
-            </div>
-            {!waiting && !shared.code && (
+      {shared.code ? (
+        <PlayerLobby shared={shared} host={host} onDirtyChange={setRosterDirty} ask={ask} />
+      ) : (
+        <div className="room-layout">
+          <section className="ledger-section">
+            <div className="section-heading">
+              <h2>Players & turn order</h2>
               <button className="text-button" onClick={onPlay}>
                 Back to play →
               </button>
-            )}
-          </div>
-          {host ? (
-            <>
-              <p className="note">
-                {shared.room && !shared.room.started
-                  ? 'Start with unclaimed seats. Joining is optional; the host can play every seat.'
-                  : 'Add players or change order without interrupting the current turn. Existing seats and their history are retained.'}
-              </p>
-              <RosterEditor
-                key={`${game.id}-${JSON.stringify(game.players)}`}
-                initial={game.players}
-                locked={disabled}
-                collapsible={waiting}
-                saveDisabled={!rosterDirty}
-                allowRemove={!!shared.room && !shared.room.started}
-                label="Save roster"
-                onDirtyChange={setRosterDirty}
-                onSave={(players) => {
-                  if (shared.code)
-                    void shared.command({ type: 'roster', players }).then((ok) => {
-                      if (ok) setRosterDirty(false);
-                    });
-                  else {
-                    onCommand({ type: 'roster', players });
-                    setRosterDirty(false);
-                  }
-                }}
-              />
-            </>
-          ) : (
-            <>
-              <ol className="seat-claims">
-                {game.players.map((p, i) => (
-                  <li key={p.id}>
-                    <Marker color={p.color} />
-                    <span>
-                      <b>
-                        {i + 1}. {p.name}
-                      </b>
-                      <small>
-                        {shared.room?.seats[p.id]
-                          ? shared.room.seats[p.id] === shared.uid
-                            ? 'Your seat'
-                            : 'Claimed'
-                          : 'Available · host approval required'}
-                      </small>
-                    </span>
-                    {!shared.room?.seats[p.id] && (
-                      <button
-                        disabled={disabled || member?.requestedSeat === p.id}
-                        onClick={() => void shared.requestSeat(p.id)}
-                      >
-                        {member?.requestedSeat === p.id ? 'Requested' : 'Request seat'}
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ol>
-              {member?.requestedSeat && (
-                <button disabled={disabled} onClick={() => void shared.requestSeat(null)}>
-                  Cancel seat request
-                </button>
-              )}
-            </>
-          )}
-        </section>
-        {!host && memberPanel}
-      </div>
+            </div>
+            <p className="note">
+              Edit names, colors, and turn order. Existing players keep their statistics.
+            </p>
+            <RosterEditor
+              key={`${game.id}-${JSON.stringify(game.players)}`}
+              initial={game.players}
+              label="Save roster"
+              allowRemove={false}
+              onSave={(players) => onCommand({ type: 'roster', players })}
+            />
+          </section>
+        </div>
+      )}
       {host && !waiting && (
         <section className="host-controls ledger-section">
           <span className="eyebrow">TABLE KEEPER’S TOOLS</span>

@@ -23,13 +23,13 @@ test('lobby is the same first screen at mobile, tablet, and desktop widths', asy
   await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('tab', { name: 'Join a game' })).toBeFocused();
   await expect(page.getByRole('textbox', { name: 'Room code' })).toBeVisible();
-  await page.goto('./?room=ABCDEF123456');
+  await page.goto('./?room=0042');
   await expect(page.getByRole('heading', { name: 'Game lobby', exact: true })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Join a game' })).toHaveAttribute(
     'aria-selected',
     'true',
   );
-  await expect(page.getByLabel('Room code')).toHaveValue('ABCDEF123456');
+  await expect(page.getByLabel('Room code')).toHaveValue('0042');
   await expect(page.getByRole('button', { name: 'Join lobby', exact: true })).toBeVisible();
   await page.evaluate(() => {
     localStorage.setItem('ledger.room', '123456ABCDEF');

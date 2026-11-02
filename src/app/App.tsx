@@ -84,9 +84,11 @@ export function App() {
     : host
       ? 'Host'
       : seated
-        ? seated.id === game?.activeTurn?.playerId
-          ? 'Your turn'
-          : 'Waiting player'
+        ? !shared.room?.started
+          ? 'Player'
+          : seated.id === game?.activeTurn?.playerId
+            ? 'Your turn'
+            : 'Waiting player'
         : 'Spectator';
   const controls =
     !!game &&
@@ -308,7 +310,7 @@ export function App() {
               ))}
             </div>
             <span className="nav-meta">
-              {shared.code ? `ROOM ${shared.code}` : 'LOCAL TABLE'}
+              {shared.code ? (host ? `ROOM ${shared.code}` : 'SHARED GAME') : 'LOCAL TABLE'}
               <i /> {role}
             </span>
           </nav>
@@ -555,7 +557,7 @@ export function App() {
               ? 'Offline · shared controls locked'
               : !shared.synced
                 ? 'Connecting to the table…'
-                : `Live room · ${role}`
+                : `${shared.room?.started ? 'Live room' : 'Lobby'} · ${role}`
             : saveError
               ? saveError
               : localGame
